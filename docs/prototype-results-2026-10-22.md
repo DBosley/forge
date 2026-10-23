@@ -21,6 +21,11 @@ load. Compare within a wave.
 | Skip library cards in the replacement scan | experiment, not rules-safe | 1.85 | all levers 1.99 (C) | −7% | no |
 | Skip the state-based check after a plain pass (P4a) | patch | 1.31 | all levers 1.79 (D) | −27% | no (30/30, passive and AI opponents) |
 | P4a with AI opponents | patch | 2.87 | P2+P3 3.41 (D) | −16% | no (30/30) |
+| Skip static rebuilds when nothing changed (P4b) | patch | 1.19 | P4a 1.31 (F) | −9% | no (30/30, passive and AI opponents) |
+| Skip opponents' turns entirely | runner + hook | 0.77 | P4a 1.31 (F) | −41% | yes: loses instant-speed play on their turns, not used |
+| Our AI decides only at upkeep and end step on opponents' turns | runner | 0.97 | every step 1.09 (G) | −11% | barely (opponents' life left 72.9 vs 73.0) |
+| Cache replacement lists on unchanged cards (P4c) | patch | 0.93 | 1.00 (H) | −7%; −16% with AI opponents | no (30/30) |
+| Memoize cards with replacement effects (P4d) | patch | 0.84 | 0.95 (I) | −11%; −23% with AI opponents | no (30/30) |
 
 ## All levers together
 
@@ -28,6 +33,9 @@ Passive opponents, horizon, P2, P3, `PERFORMANCE_MODE`, lazy loading.
 
 - One JVM, idle machine: **1.63 s mean, 1.52 s median, 1.02 s fastest**, startup 1.1 s. Stock was 6.3–6.5 s.
 - Plus P4a, one JVM, idle machine: **1.22 s mean, 1.17 s median, 0.67 s fastest**.
+- Plus P4b, P4c, P4d and opponent-turn stops at upkeep and end step, one JVM, idle machine:
+  **0.77 s mean, 0.74 s median, 0.34 s fastest**.
+- Same config, 16 workers × 40 games: 7.75 games/s, 1,000 games in 2.1 min.
 - 24 workers × 20 games: 3.43 games/s, 1,000 games in 4.9 min. Per game 6.3 s (contention). About 1 GB RSS per
   worker.
 - 16 workers × 20 games, `-XX:ParallelGCThreads=2 -XX:ConcGCThreads=1 -XX:CICompilerCount=2 -Xmx2g`:
@@ -67,15 +75,21 @@ A probe on 10 games: the four commander-rule effects (one per player, `Affected$
 
 ## Next levers toward 1 s
 
-1. Done as P4a for the biggest caller: the state-based check after a plain pass (32% of the time before).
-   Remaining after P4a: AI choosing plays 37%, static rebuilds from other callers 30%, replacement scan 29%
-   (overlapping).
+1. Done: P4a (state check after a pass), P4b (static rebuilds), P4c and P4d (replacement scan, 35% down to 19%).
+   Remaining after all of them: AI choosing plays 33%, static rebuilds 33% (mostly the partial rebuilds Forge runs
+   to preview a card entering the battlefield, and rebuilds after real changes), `cardHasProperty` 17%.
 2. Parse property restrictions once per ability instead of per card per check.
 3. Cache each card's replacement-effect list (ceiling about 7%, measured above).
 4. For batches: games on threads inside one JVM (needs a per-game random source and the `Game.maxId` and
    `Trigger.maxId` counters made per game), so the card data and JIT work are shared.
 
 ## Play quality
+
+First deck policy (`prototype/policies/multiverse-reforged.yaml`, Forge patch P6 `AiPlayPolicy`), 30 seeds: table
+dead by round 10 from 3% to 10%, opponents' life left 73 to 66, Jace −3 from 0 to 0.97 a game, Identity Echo and
+Proteus Staff activations 0 to 1.07 a game. The Python model of the same list: 85%. Parked to finish the speed work.
+
+Earlier finding, before the policy:
 
 Table dead by round 10: 3–9% of games in Forge with its own AI, against 66–85% from the Python model of the same
 list. Forge's AI does not play the deck's plan, and it marks ten cards in the list as cards it cannot play. Speed
@@ -93,5 +107,6 @@ python3 bench.py out/<wave> 30 base perf 'all*2'
 ```
 
 Patch switches on the `goldfish` branch: `forge.ai.inlineEvaluation`, `forge.ai.sequentialAttacks` (P2, P3),
-`forge.game.skipRedundantStateChecks` (P4a),
+`forge.game.skipRedundantStateChecks` (P4a), `forge.game.skipUnchangedStatics` (P4b),
+`forge.game.cacheReplacementLists` (P4c), `forge.game.memoReplacementCandidates` (P4d),
 `forge.experiment.skipLibraryReplacements` and `forge.experiment.staticProbe` (measurement only).
