@@ -78,6 +78,7 @@ public class GameAction {
     private final Game game;
     private static final boolean SKIP_UNCHANGED_STATICS = Boolean.getBoolean("forge.game.skipUnchangedStatics");
     private long stateEventsAtLastRebuild = -1;
+    private long stableStateEvents = -1;
     private long staticsVersion;
 
     public long getStaticsVersion() {
@@ -1088,10 +1089,12 @@ public class GameAction {
             return;
         }
         if (!preList.isEmpty()) {
+            stableStateEvents = -1;
             stateEventsAtLastRebuild = -1;
-        } else if (SKIP_UNCHANGED_STATICS && game.getStateEventCount() == stateEventsAtLastRebuild) {
+        } else if (SKIP_UNCHANGED_STATICS && game.getStateEventCount() == stableStateEvents) {
             return;
         }
+        final long stateEventsBefore = game.getStateEventCount();
         staticsVersion++;
         game.getTracker().freeze(); //prevent views flickering during while updating for state-based effects
 
@@ -1281,7 +1284,11 @@ public class GameAction {
             game.fireDerivedEvent(new GameEventCardStatsChanged(affectedCards));
         }
         if (preList.isEmpty()) {
-            stateEventsAtLastRebuild = game.getStateEventCount();
+            // a rebuild can add keyword triggers that only act on the next one, so skip only after a rebuild
+            // that started from the last one's end state and changed nothing itself
+            final long stateEventsAfter = game.getStateEventCount();
+            stableStateEvents = stateEventsBefore == stateEventsAtLastRebuild && stateEventsAfter == stateEventsBefore ? stateEventsAfter : -1;
+            stateEventsAtLastRebuild = stateEventsAfter;
         }
         staticsVersion++;
         game.getTracker().unfreeze();
