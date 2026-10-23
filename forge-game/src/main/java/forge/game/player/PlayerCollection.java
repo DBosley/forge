@@ -29,8 +29,14 @@ public class PlayerCollection extends FCollection<Player> {
     // card collection functions
     public final CardCollection getCardsIn(ZoneType zone) {
         CardCollection result = new CardCollection();
+        final boolean distinct = zone != ZoneType.Flashback && !isEmpty() && getFirst().getGame() != null
+                && getFirst().getGame().getRules().isGoldfish();
         for (Player p : this) {
-            result.addAll(p.getCardsIn(zone));
+            if (distinct) {
+                result.addAllDistinct(p.getCardsIn(zone));
+            } else {
+                result.addAll(p.getCardsIn(zone));
+            }
         }
         return result;
     }
