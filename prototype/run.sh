@@ -6,6 +6,8 @@ home="$1"; shift
 jvm=()
 while [[ $# -gt 0 && "$1" != "--" ]]; do jvm+=("$1"); shift; done
 [[ "${1:-}" == "--" ]] && shift
+# the fork's engine flags, none of them change a game (FORGE_FLAGS= to run without them)
+standard_flags="-Dforge.ai.inlineEvaluation=true -Dforge.game.skipRedundantStateChecks=true -Dforge.game.cacheReplacementLists=true -Dforge.game.memoReplacementCandidates=true -Dforge.game.cacheStaticLists=true"
 threads=1
 for ((i = 1; i < $#; i++)); do
   [[ "${!i}" == "--threads" ]] && { j=$((i + 1)); threads="${!j}"; }
@@ -28,4 +30,4 @@ if [[ ! -d "$work" ]]; then
 fi
 cd "$work"
 # parallel gc: same games, about 7% less wall per game than g1 and 13% less process cpu (GC_FLAGS= for the jvm default)
-exec java -Xmx$(( threads > 1 ? threads + 4 : 3 ))g -XX:+UnlockExperimentalVMOptions -XX:hashCode=2 -XX:-DontCompileHugeMethods ${GC_FLAGS--XX:+UseParallelGC} "${jvm[@]}" -cp "$BUILD:$FORGE_CP" forge.goldfish.Runner "$@"
+exec java -Xmx$(( threads > 1 ? threads + 4 : 3 ))g -XX:+UnlockExperimentalVMOptions -XX:hashCode=2 -XX:-DontCompileHugeMethods ${GC_FLAGS--XX:+UseParallelGC} ${FORGE_FLAGS-$standard_flags} "${jvm[@]}" -cp "$BUILD:$FORGE_CP" forge.goldfish.Runner "$@"

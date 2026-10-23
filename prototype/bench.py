@@ -8,6 +8,7 @@ pays its own JVM startup and warmup.
 """
 
 import json
+import os
 import statistics
 import subprocess
 import sys
@@ -76,7 +77,8 @@ def launch(out: Path, label: str, name: str, games: int, extra_jvm: list[str], s
                 "--games", str(count), "--seed", str(1 + first), "--out", str(out / f"{part}.jsonl")]
         for key, value in opts.items():
             args += [f"--{key}", value]
-        procs.append((part, subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=open(out / f"{part}.stderr", "w"))))
+        procs.append((part, subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=open(out / f"{part}.stderr", "w"),
+                                            env={**os.environ, "FORGE_FLAGS": ""})))
     return procs
 
 
