@@ -88,6 +88,9 @@ copy_choices:
   Spark Double: ["Jace, Multiverse Architect", nontoken planeswalker, creature]
 
 trigger_targets:
-  Displacer Kitten: [nontoken planeswalker used]
+  Displacer Kitten: [nontoken planeswalker used, Archon of Cruelty, Overlord of the Mistmoors, Way of the Mind Sculptor,
+                     Way of the Healer, Oath of Gideon, "Memnarch, the Warden", Staff of the Storyteller, Sun Titan]
   Ichormoon Gauntlet: [nontoken planeswalker, planeswalker]
 
+charm_modes:
+  Hullbreaker Horror: []

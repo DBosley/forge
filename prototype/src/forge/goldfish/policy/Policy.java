@@ -25,6 +25,7 @@ import forge.game.GameEntity;
 import forge.game.cost.CostPayment;
 import forge.game.card.Card;
 import forge.game.player.Player;
+import forge.game.spellability.AbilitySub;
 import forge.game.spellability.SpellAbility;
 
 public final class Policy implements AiPlayPolicy {
@@ -34,7 +35,7 @@ public final class Policy implements AiPlayPolicy {
                         int maxLoyalty) {
     }
 
-    private record Hold(CardFilter card, Condition unless) {
+    private record Hold(CardFilter card, Condition unless, boolean activations) {
     }
 
     private final Set<String> cardNames;
@@ -47,10 +48,12 @@ public final class Policy implements AiPlayPolicy {
     private final List<Rule> rules;
     private final List<Hold> holds;
     private final boolean allowRemoved;
+    private final Map<String, List<String>> charmModes;
 
     private Policy(Set<String> cardNames, List<Rule> rules, List<Hold> holds, boolean allowRemoved, String opponentTurnStops,
                    Condition keepIf, Map<String, List<CardFilter>> triggerTargets, boolean payLifeForUntappedLands,
-                   Map<String, List<CardFilter>> copyChoices, boolean worstFirst) {
+                   Map<String, List<CardFilter>> copyChoices, boolean worstFirst, Map<String, List<String>> charmModes) {
+        this.charmModes = charmModes;
         this.worstFirst = worstFirst;
         this.payLifeForUntappedLands = payLifeForUntappedLands;
         this.copyChoices = copyChoices;
@@ -106,7 +109,9 @@ public final class Policy implements AiPlayPolicy {
 
         List<Hold> holds = new ArrayList<>();
         for (Map<String, Object> h : (List<Map<String, Object>>) doc.getOrDefault("hold", List.of())) {
-            Hold hold = new Hold(CardFilter.parse((String) h.get("card"), roles), Condition.parse((String) h.get("unless"), roles));
+            boolean activations = h.containsKey("activate");
+            Hold hold = new Hold(CardFilter.parse((String) h.get(activations ? "activate" : "card"), roles),
+                    Condition.parse((String) h.get("unless"), roles), activations);
             addName(names, hold.card());
             holds.add(hold);
         }
@@ -114,7 +119,8 @@ public final class Policy implements AiPlayPolicy {
                 doc.get("opponent_turn_stops") == null ? null : String.join(",", (List<String>) doc.get("opponent_turn_stops")),
                 Condition.parse((String) ((Map<String, Object>) doc.getOrDefault("mulligan", Map.of())).get("keep_if"), roles),
                 Map.copyOf(triggerTargets), Boolean.TRUE.equals(doc.get("pay_life_for_untapped_lands")), Map.copyOf(copyChoices),
-                "worst_first".equals(doc.get("hand_disposal")));
+                "worst_first".equals(doc.get("hand_disposal")),
+                Map.copyOf((Map<String, List<String>>) doc.getOrDefault("charm_modes", Map.of())));
     }
 
     private static void addName(Set<String> names, CardFilter filter) {
@@ -184,7 +190,7 @@ public final class Policy implements AiPlayPolicy {
             }
             List<SpellAbility> matching = new ArrayList<>();
             for (SpellAbility sa : candidates) {
-                if (rule.selector().matches(sa) && !holds(sa)
+                if (rule.selector().matches(sa) && (sa.isActivatedAbility() || !holds(sa))
                         && (rule.text() == null || String.valueOf(sa.getDescription()).contains(rule.text()))) {
                     matching.add(sa);
                 }
@@ -254,18 +260,42 @@ public final class Policy implements AiPlayPolicy {
                 options.add(c);
             }
         }
-        options.sort(Comparator.comparingInt((Card c) -> rank(c, preferences)).thenComparingInt(Policy::value));
+        Map<Card, Integer> ranks = new HashMap<>();
+        options.forEach(c -> ranks.put(c, rank(c, preferences)));
+        options.removeIf(c -> ranks.get(c) == Integer.MAX_VALUE);
+        Map<Card, Integer> values = new HashMap<>();
+        options.forEach(c -> values.put(c, value(c)));
+        options.sort(Comparator.comparingInt((Card c) -> ranks.get(c)).thenComparingInt(values::get));
         for (Card c : options) {
-            if (sa.getTargets().size() >= sa.getMaxTargets() || rank(c, preferences) == Integer.MAX_VALUE) {
+            if (sa.getTargets().size() >= sa.getMaxTargets()) {
                 break;
             }
             sa.getTargets().add(c);
+        }
+        if (sa.getTargets().isEmpty() && sa.getMinTargets() == 0) {
+            return true;
         }
         if (sa.getTargets().isEmpty() || !sa.isTargetNumberValid()) {
             sa.resetTargets();
             return false;
         }
         return true;
+    }
+
+    public List<AbilitySub> chooseModes(SpellAbility sa, List<AbilitySub> possible, int min, int num) {
+        List<String> wanted = charmModes.get(sa.getHostCard().getName());
+        if (wanted == null) {
+            return null;
+        }
+        List<AbilitySub> chosen = new ArrayList<>();
+        for (String text : wanted) {
+            possible.stream().filter(m -> m.getDescription().contains(text) && !chosen.contains(m)).findFirst()
+                    .ifPresent(chosen::add);
+            if (chosen.size() >= num) {
+                break;
+            }
+        }
+        return chosen.size() >= min ? chosen : null;
     }
 
     public boolean retargetTrigger(Card host, SpellAbility sa) {
@@ -299,12 +329,13 @@ public final class Policy implements AiPlayPolicy {
     @Override
     public boolean holds(SpellAbility sa) {
         Card host = sa.getHostCard();
-        if (!sa.isSpell() || host == null) {
+        boolean activation = sa.isActivatedAbility() && !sa.isManaAbility();
+        if (!(sa.isSpell() || activation) || host == null) {
             return false;
         }
         Player controller = sa.getActivatingPlayer() != null ? sa.getActivatingPlayer() : host.getController();
         for (Hold hold : holds) {
-            if (hold.card().test(host) && !hold.unless().test(controller)) {
+            if (hold.activations() == activation && hold.card().test(host) && !hold.unless().test(controller)) {
                 return true;
             }
         }

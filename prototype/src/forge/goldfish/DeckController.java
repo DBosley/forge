@@ -22,6 +22,7 @@ import forge.game.card.CardCollectionView;
 import forge.game.phase.PhaseType;
 import forge.game.player.DelayedReveal;
 import forge.game.player.Player;
+import forge.game.spellability.AbilitySub;
 import forge.game.spellability.SpellAbility;
 import forge.game.trigger.WrappedAbility;
 import forge.game.zone.ZoneType;
@@ -68,6 +69,12 @@ public final class DeckController extends PlayerControllerAi {
         }
         ordered.addAll(pool);
         return ordered;
+    }
+
+    @Override
+    public List<AbilitySub> chooseModeForAbility(SpellAbility sa, List<AbilitySub> possible, int min, int num, boolean allowRepeat) {
+        List<AbilitySub> chosen = policy == null ? null : policy.chooseModes(sa, possible, min, num);
+        return chosen != null ? chosen : super.chooseModeForAbility(sa, possible, min, num, allowRepeat);
     }
 
     @Override
