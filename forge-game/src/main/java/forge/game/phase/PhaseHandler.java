@@ -93,6 +93,9 @@ public class PhaseHandler implements java.io.Serializable, IHasForgeLog {
 
     /** The need to next phase. */
     private boolean givePriorityToPlayer = false;
+    private static final boolean SKIP_REDUNDANT_STATE_CHECKS = Boolean.getBoolean("forge.game.skipRedundantStateChecks");
+    private transient long stateEventsAtLastCheck = -1;
+    private transient boolean passedSinceStateCheck = false;
 
     private final transient Game game;
 
@@ -1047,10 +1050,15 @@ public class PhaseHandler implements java.io.Serializable, IHasForgeLog {
 
             int loopCount = 0;
             do {
-                if (checkStateBasedEffects()) {
+                // a pass changes nothing, so with no game events since the last check this one would find nothing
+                boolean redundant = SKIP_REDUNDANT_STATE_CHECKS && passedSinceStateCheck
+                        && game.getStateEventCount() == stateEventsAtLastCheck;
+                passedSinceStateCheck = false;
+                if (!redundant && checkStateBasedEffects()) {
                     // state-based effects check could lead to game over
                     return;
                 }
+                stateEventsAtLastCheck = game.getStateEventCount();
                 game.stashGameState();
 
                 chosenSa = pPlayerPriority.getController().chooseSpellAbilityToPlay();
@@ -1144,6 +1152,7 @@ public class PhaseHandler implements java.io.Serializable, IHasForgeLog {
             }
         } else {
             pPlayerPriority = nextPlayer;
+            passedSinceStateCheck = true;
         }
 
         // If ever the karn's ultimate resolved
