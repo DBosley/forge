@@ -22,6 +22,7 @@ import forge.ai.ComputerUtilCard;
 import forge.ai.ComputerUtilCost;
 import forge.ai.ComputerUtilMana;
 import forge.game.GameEntity;
+import forge.game.cost.CostPayment;
 import forge.game.card.Card;
 import forge.game.player.Player;
 import forge.game.spellability.SpellAbility;
@@ -29,7 +30,8 @@ import forge.game.spellability.SpellAbility;
 public final class Policy implements AiPlayPolicy {
     private static final boolean DEBUG = Boolean.getBoolean("goldfish.policyDebug");
 
-    private record Rule(Selector selector, Condition when, boolean force, List<CardFilter> targets) {
+    private record Rule(Selector selector, Condition when, boolean force, List<CardFilter> targets, String text, int minLoyalty,
+                        int maxLoyalty) {
     }
 
     private record Hold(CardFilter card, Condition unless) {
@@ -39,12 +41,19 @@ public final class Policy implements AiPlayPolicy {
     private final String opponentTurnStops;
     private final Condition keepIf;
     private final Map<String, List<CardFilter>> triggerTargets;
+    private final boolean payLifeForUntappedLands;
+    private final Map<String, List<CardFilter>> copyChoices;
+    private final boolean worstFirst;
     private final List<Rule> rules;
     private final List<Hold> holds;
     private final boolean allowRemoved;
 
     private Policy(Set<String> cardNames, List<Rule> rules, List<Hold> holds, boolean allowRemoved, String opponentTurnStops,
-                   Condition keepIf, Map<String, List<CardFilter>> triggerTargets) {
+                   Condition keepIf, Map<String, List<CardFilter>> triggerTargets, boolean payLifeForUntappedLands,
+                   Map<String, List<CardFilter>> copyChoices, boolean worstFirst) {
+        this.worstFirst = worstFirst;
+        this.payLifeForUntappedLands = payLifeForUntappedLands;
+        this.copyChoices = copyChoices;
         this.cardNames = cardNames;
         this.keepIf = keepIf;
         this.triggerTargets = triggerTargets;
@@ -79,9 +88,16 @@ public final class Policy implements AiPlayPolicy {
             addName(names, selector.card());
             targets.forEach(t -> addName(names, t));
             rules.add(new Rule(selector, Condition.parse((String) r.get("when"), roles),
-                    Boolean.TRUE.equals(r.get("force")), targets));
+                    Boolean.TRUE.equals(r.get("force")), targets, (String) r.get("text"),
+                    ((Number) r.getOrDefault("min_loyalty", 0)).intValue(),
+                    ((Number) r.getOrDefault("max_loyalty", Integer.MAX_VALUE)).intValue()));
         }
 
+        Map<String, List<CardFilter>> copyChoices = new HashMap<>();
+        ((Map<String, List<String>>) doc.getOrDefault("copy_choices", Map.of())).forEach((card, prefs) -> {
+            names.add(card);
+            copyChoices.put(card, prefs.stream().map(t -> CardFilter.parse(t, roles)).toList());
+        });
         Map<String, List<CardFilter>> triggerTargets = new HashMap<>();
         ((Map<String, List<String>>) doc.getOrDefault("trigger_targets", Map.of())).forEach((card, prefs) -> {
             names.add(card);
@@ -97,13 +113,52 @@ public final class Policy implements AiPlayPolicy {
         return new Policy(Set.copyOf(names), List.copyOf(rules), List.copyOf(holds), Boolean.TRUE.equals(doc.get("allow_ai_removed")),
                 doc.get("opponent_turn_stops") == null ? null : String.join(",", (List<String>) doc.get("opponent_turn_stops")),
                 Condition.parse((String) ((Map<String, Object>) doc.getOrDefault("mulligan", Map.of())).get("keep_if"), roles),
-                Map.copyOf(triggerTargets));
+                Map.copyOf(triggerTargets), Boolean.TRUE.equals(doc.get("pay_life_for_untapped_lands")), Map.copyOf(copyChoices),
+                "worst_first".equals(doc.get("hand_disposal")));
     }
 
     private static void addName(Set<String> names, CardFilter filter) {
         if (filter.cardName() != null) {
             names.add(filter.cardName());
         }
+    }
+
+    public Card chooseCopy(Card host, List<Card> options) {
+        List<CardFilter> preferences = copyChoices.get(host.getName());
+        if (preferences == null) {
+            return null;
+        }
+        return options.stream().filter(c -> rank(c, preferences) != Integer.MAX_VALUE)
+                .min(Comparator.comparingInt((Card c) -> rank(c, preferences)).thenComparingInt(c -> -value(c))).orElse(null);
+    }
+
+    public List<Card> worstCards(Player player, List<Card> options, int count) {
+        if (!worstFirst) {
+            return null;
+        }
+        long landsOut = player.getCardsIn(forge.game.zone.ZoneType.Battlefield).stream().filter(Card::isLand).count();
+        List<Card> pool = new ArrayList<>(options);
+        List<Card> picked = new ArrayList<>();
+        while (picked.size() < count && !pool.isEmpty()) {
+            List<Card> lands = pool.stream().filter(Card::isLand).toList();
+            Card pick;
+            if (lands.size() >= 2 || (!lands.isEmpty() && landsOut >= 7)) {
+                pick = lands.get(lands.size() - 1);
+            } else {
+                pick = pool.stream().filter(c -> !c.isLand()).max(Comparator.comparingInt(Card::getCMC))
+                        .orElse(lands.isEmpty() ? null : lands.get(lands.size() - 1));
+            }
+            if (pick == null) {
+                break;
+            }
+            picked.add(pick);
+            pool.remove(pick);
+        }
+        return picked;
+    }
+
+    public boolean paysLifeForUntappedLands() {
+        return payLifeForUntappedLands;
     }
 
     public boolean keeps(Player player) {
@@ -127,10 +182,15 @@ public final class Policy implements AiPlayPolicy {
             if (!rule.when().test(player)) {
                 continue;
             }
+            List<SpellAbility> matching = new ArrayList<>();
             for (SpellAbility sa : candidates) {
-                if (!rule.selector().matches(sa) || holds(sa)) {
-                    continue;
+                if (rule.selector().matches(sa) && !holds(sa)
+                        && (rule.text() == null || String.valueOf(sa.getDescription()).contains(rule.text()))) {
+                    matching.add(sa);
                 }
+            }
+            matching.sort(Comparator.comparingInt(Policy::manaPaid).reversed());
+            for (SpellAbility sa : matching) {
                 sa.setActivatingPlayer(player);
                 if (rule.targets().isEmpty() && !rule.force()) {
                     AiPlayDecision decision = ai.canPlayAndPayFor(sa);
@@ -138,6 +198,10 @@ public final class Policy implements AiPlayPolicy {
                     if (decision == AiPlayDecision.WillPlay) {
                         return sa;
                     }
+                } else if (rule.minLoyalty() > 0 && sa.getHostCard().getCurrentLoyalty() < rule.minLoyalty()) {
+                    debug(player, rule, sa, "loyalty below " + rule.minLoyalty());
+                } else if (sa.getHostCard().getCurrentLoyalty() > rule.maxLoyalty()) {
+                    debug(player, rule, sa, "loyalty above " + rule.maxLoyalty());
                 } else {
                     String why = prepare(sa, player, rule.targets());
                     debug(player, rule, sa, why == null ? "play" : why);
@@ -165,7 +229,9 @@ public final class Policy implements AiPlayPolicy {
             }
             sa.setXManaCostPaid(x);
         }
-        if (!ComputerUtilCost.canPayCost(sa, player, false)) {
+        boolean payable = sa.isPwAbility() ? CostPayment.canPayAdditionalCosts(sa.getPayCosts(), sa, false)
+                : ComputerUtilCost.canPayCost(sa, player, false);
+        if (!payable) {
             sa.resetTargets();
             return "can't pay";
         }
@@ -208,6 +274,10 @@ public final class Policy implements AiPlayPolicy {
             return false;
         }
         return setTargets(sa, preferences);
+    }
+
+    private static int manaPaid(SpellAbility sa) {
+        return sa.getPayCosts() == null || sa.getPayCosts().getTotalMana() == null ? 0 : sa.getPayCosts().getTotalMana().getCMC();
     }
 
     private static int rank(Card c, List<CardFilter> preferences) {

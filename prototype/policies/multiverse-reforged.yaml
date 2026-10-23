@@ -1,5 +1,7 @@
 deck: multiverse-reforged
 allow_ai_removed: true
+pay_life_for_untapped_lands: true
+hand_disposal: worst_first
 opponent_turn_stops: [upkeep, end_of_turn]
 
 mulligan:
@@ -20,6 +22,20 @@ plays:
   - activate: "Jace, Multiverse Architect: -3"
     when: count(creature token) >= 1
     target: [creature token]
+  - activate: "Nicol Bolas, Dragon-God: -3"
+    text: Reveal cards
+    when: count(creature token) >= 1
+    target: [creature token]
+  - activate: "Jace, Multiverse Architect: +1"
+    max_loyalty: 2
+    force: true
+  - activate: "Jace, Multiverse Architect: +1"
+    when: main2
+    force: true
+  - activate: "Nicol Bolas, Dragon-God: +1"
+    text: Draw two
+    when: main2
+    force: true
   - play: role:ramp
     when: sources < 5
     force: true
@@ -54,7 +70,6 @@ plays:
     when: count(creature token) >= 2 and count(creature nontoken) == 0
     force: true
   - play: "Jace, Multiverse Architect"
-    when: count(creature) >= 1
     force: true
   - play: role:polymorph_tools
     force: true
@@ -69,10 +84,10 @@ plays:
   - play: role:draw
     force: true
 
+copy_choices:
+  Spark Double: ["Jace, Multiverse Architect", nontoken planeswalker, creature]
+
 trigger_targets:
   Displacer Kitten: [nontoken planeswalker used]
   Ichormoon Gauntlet: [nontoken planeswalker, planeswalker]
 
-hold:
-  - card: "Jace, Multiverse Architect"
-    unless: count(creature) >= 1

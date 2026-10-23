@@ -51,6 +51,10 @@ VARIANTS = {
     "nopol_basics": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "opponent-stops": "upkeep,end_of_turn", "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
     "pol": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "multiverse-reforged.yaml")}),
     "pol_basics": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "multiverse-reforged.yaml"), "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
+    "pol_nolife": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "multiverse-reforged-nolife.yaml"), "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
+    "floor_a": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "jace-floor-a.yaml"), "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
+    "floor_b": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "jace-floor-b.yaml"), "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
+    "floor_c": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "jace-floor-c.yaml"), "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
     "policy": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "multiverse-reforged.yaml")}),
 }
 
