@@ -16,4 +16,4 @@ if [[ ! -d "$work" ]]; then
   [[ "$home" == *perf* ]] && echo "PERFORMANCE_MODE=true" >> "$work/user/preferences/forge.preferences"
 fi
 cd "$work"
-exec java -Xmx3g -XX:+UnlockExperimentalVMOptions -XX:hashCode=2 "${jvm[@]}" -cp "$here/build:$FORGE_CP" forge.goldfish.Runner "$@"
+exec java -Xmx3g -XX:+UnlockExperimentalVMOptions -XX:hashCode=2 -XX:-DontCompileHugeMethods "${jvm[@]}" -cp "$here/build:$FORGE_CP" forge.goldfish.Runner "$@"
