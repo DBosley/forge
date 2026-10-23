@@ -7152,6 +7152,15 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
         return replacementEffect;
     }
 
+    // a plain basic land: no static, trigger or replacement effect printed or granted, no counters
+    public boolean hasNoTraitEffects() {
+        return counters.isEmpty() && suspectedStatic == null && staticCommandList.isEmpty() && states.size() == 1
+                && changedCardTraits.isEmpty() && changedCardTraitsByText.isEmpty()
+                && changedCardKeywords.isEmpty() && changedCardKeywordsByText.isEmpty()
+                && changedCardTypes.isEmpty() && changedCardTypesByText.isEmpty()
+                && currentState.hasNoTraitEffects();
+    }
+
     public boolean isUnchangedForReplacements() {
         return changedCardTraitsByText.isEmpty() && changedCardTraits.isEmpty()
                 && changedCardKeywords.isEmpty() && changedCardKeywordsByText.isEmpty()
