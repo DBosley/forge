@@ -310,6 +310,10 @@ public class Player extends GameEntity implements Comparable<Player> {
     }
 
     public void updateFlashbackForView() {
+        if (game.getRules().isGoldfish()) {
+            game.fireEvent(new GameEventZone(ZoneType.Flashback, this, EventValueChangeType.Added, null));
+            return;
+        }
         final FCollectionView<CardView> before = view.getFlashback();
         view.updateFlashback(this);
         if (!before.equals(view.getFlashback())) {
@@ -1300,6 +1304,10 @@ public class Player extends GameEntity implements Comparable<Player> {
         return zones.get(zone);
     }
     public void updateZoneForView(PlayerZone zone) {
+        // the hand is kept for the mulligan log line, nothing but a gui reads the other zones
+        if (game.getRules().isGoldfish() && zone.getZoneType() != ZoneType.Hand) {
+            return;
+        }
         view.updateZone(zone);
     }
 
