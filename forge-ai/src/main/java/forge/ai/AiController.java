@@ -87,6 +87,12 @@ import static java.lang.Math.max;
  * @version $Id$
  */
 public class AiController {
+    private AiPlayPolicy playPolicy;
+
+    public void setPlayPolicy(AiPlayPolicy playPolicy) {
+        this.playPolicy = playPolicy;
+    }
+
     private final Player player;
     private final Game game;
     private final AiCardMemory memory;
@@ -828,7 +834,7 @@ public class AiController {
         return true;
     }
 
-    private AiPlayDecision canPlayAndPayFor(final SpellAbility sa) {
+    public AiPlayDecision canPlayAndPayFor(final SpellAbility sa) {
         AITimeoutTracker.check();
         final Card host = sa.getHostCard();
 
@@ -1648,7 +1654,9 @@ public class AiController {
         saList.removeIf(spellAbility -> {
             // don't include removedAI cards if somehow the AI can play the ability or gain control of unsupported card
             // TODO allow when experimental profile?
-            return spellAbility.isLandAbility() || (spellAbility.getHostCard() != null && ComputerUtilCard.isCardRemAIDeck(spellAbility.getHostCard()));
+            Card host = spellAbility.getHostCard();
+            return spellAbility.isLandAbility() || (host != null && ComputerUtilCard.isCardRemAIDeck(host)
+                    && (playPolicy == null || !playPolicy.allowsRemovedCard(host)));
         });
         //removed skipped SA
         skipped = saList.stream().filter(SpellAbility::isSkip).collect(Collectors.toList());
@@ -1656,6 +1664,14 @@ public class AiController {
             saList.removeAll(skipped);
         //update LivingEndPlayer
         useLivingEnd = IterableUtil.any(player.getZone(ZoneType.Library), CardPredicates.nameEquals("Living End"));
+
+        if (playPolicy != null) {
+            SpellAbility picked = playPolicy.choose(this, player, saList);
+            if (picked != null) {
+                return picked;
+            }
+            saList.removeIf(playPolicy::holds);
+        }
 
         SpellAbility chosenSa = chooseSpellAbilityToPlayFromList(saList, true);
 
