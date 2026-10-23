@@ -88,6 +88,11 @@ public abstract class PlayerController {
         return false;
     }
 
+    // a goldfish opponent: plays a land a turn and nothing else
+    public boolean isPassive() {
+        return false;
+    }
+
     public Game getGame() { return gameView.getGame(); }
     public Match getMatch() { return gameView.getMatch(); }
     public Player getPlayer() { return player; }

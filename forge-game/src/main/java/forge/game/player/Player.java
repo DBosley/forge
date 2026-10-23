@@ -3286,7 +3286,10 @@ public class Player extends GameEntity implements Comparable<Player> {
         if (game.getRules().hasAppliedVariant(GameType.Planeswalker)) { //support paying for Planeswalker with any color mana
             mayBePlayedAbility += " | MayPlayIgnoreColor$ True";
         }
-        eff.addStaticAbility(mayBePlayedAbility);
+        // a passive goldfish opponent never casts its commander, the static would only cost rebuild time
+        if (!game.getRules().isGoldfish() || !getController().isPassive()) {
+            eff.addStaticAbility(mayBePlayedAbility);
+        }
         this.commanderEffect = eff;
         com.add(eff);
     }
