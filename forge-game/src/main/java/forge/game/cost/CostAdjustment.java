@@ -34,6 +34,8 @@ import java.util.function.Predicate;
 
 public class CostAdjustment {
 
+    private static final List<ZoneType> COST_SOURCE_ZONES = List.of(ZoneType.Battlefield, ZoneType.Stack, ZoneType.Command);
+
     public static Cost adjust(final Cost cost, final SpellAbility sa, boolean effect) {
         if (sa.isTrigger() || cost == null || effect) {
             sa.setMaxWaterbend(cost);
@@ -62,9 +64,7 @@ public class CostAdjustment {
             }
         }
 
-        CardCollection cardsOnBattlefield = new CardCollection(game.getCardsIn(ZoneType.Battlefield));
-        cardsOnBattlefield.addAll(game.getCardsIn(ZoneType.Stack));
-        cardsOnBattlefield.addAll(game.getCardsIn(ZoneType.Command));
+        CardCollection cardsOnBattlefield = new CardCollection(game.getCardsIn(COST_SOURCE_ZONES));
         if (!cardsOnBattlefield.contains(host)) {
             cardsOnBattlefield.add(host);
         }
@@ -189,9 +189,7 @@ public class CostAdjustment {
             isStateChangeToFaceDown = true;
         }
 
-        CardCollection cardsOnBattlefield = new CardCollection(game.getCardsIn(ZoneType.Battlefield));
-        cardsOnBattlefield.addAll(game.getCardsIn(ZoneType.Stack));
-        cardsOnBattlefield.addAll(game.getCardsIn(ZoneType.Command));
+        CardCollection cardsOnBattlefield = new CardCollection(game.getCardsIn(COST_SOURCE_ZONES));
         if (!cardsOnBattlefield.contains(host)) {
             cardsOnBattlefield.add(host);
         }
