@@ -1609,6 +1609,11 @@ public class CardView extends GameEntityView {
         }
         void updateKeywords(Card c, CardState state) {
             c.updateKeywordsCache(state);
+            if (c.getGame() != null && c.getGame().getRules().isGoldfish()) {
+                // ability text feeds stack descriptions; the rest is only drawn by a GUI
+                updateAbilityText(c, state);
+                return;
+            }
             set(TrackableProperty.Keywords, state.getCachedKeywords().getView());
             // deeper check for Idris
             set(TrackableProperty.HasAnnihilator, c.hasKeyword(Keyword.ANNIHILATOR, state) || state.getTriggers().anyMatch(t -> t.isKeyword(Keyword.ANNIHILATOR)));
