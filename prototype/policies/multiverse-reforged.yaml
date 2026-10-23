@@ -2,6 +2,7 @@ deck: multiverse-reforged
 allow_ai_removed: true
 pay_life_for_untapped_lands: true
 hand_disposal: worst_first
+attack: focus_lowest
 opponent_turn_stops: [upkeep, end_of_turn]
 
 mulligan:
