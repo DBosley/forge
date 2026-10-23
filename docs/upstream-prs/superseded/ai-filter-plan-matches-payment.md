@@ -1,3 +1,5 @@
+Superseded by ai-filter-chain.md (2026-10-23): this version made planning refuse the chained payment instead of making the payment do it. Kept for reference, do not open.
+
 Branches, pick one depending on #12357:
 - pr/ai-filter-plan-matches-payment-on-12357: 1 commit on top of MostCromulent's #12357 (open). Use this if #12357 merges first, which looks likely. It also carries the leftover Combo choice fix, which only matters once Combo filters are allowed.
 - pr/ai-filter-plan-matches-payment: 1 commit on master, Signets only. Use this if #12357 stalls.
