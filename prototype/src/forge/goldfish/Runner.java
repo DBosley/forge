@@ -135,6 +135,7 @@ public final class Runner {
         MyRandom.setRandom(new Random(seed));
         Match match = new Match(rules, players, "Goldfish");
         Game game = match.createGame();
+        game.AI_TIMEOUT = Integer.getInteger("goldfish.aiTimeout", 3600);
         game.setNoGUIUser();
         Player me = game.getPlayers().stream().filter(p -> p.getName().equals(DECK_PLAYER)).findFirst().orElseThrow();
         if (libraryOrder != null) {
