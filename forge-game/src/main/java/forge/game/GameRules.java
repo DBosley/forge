@@ -25,12 +25,22 @@ public class GameRules {
     // whether to warn about cards AI can't play well
     private boolean warnAboutAICards = true;
 
+    // headless game against opponents that never act: skips work only a GUI or an acting opponent needs
+    private boolean goldfish;
+
     public GameRules(final GameType type) {
         this.gameType = type;
     }
 
     public GameType getGameType() {
         return gameType;
+    }
+
+    public boolean isGoldfish() {
+        return goldfish;
+    }
+    public void setGoldfish(final boolean goldfish) {
+        this.goldfish = goldfish;
     }
 
     public boolean hasManaBurn() {
