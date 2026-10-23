@@ -1054,11 +1054,15 @@ public final class StaticAbilityContinuous {
         }
 
         final String[] strngs = params.get("Affected").split(",");
+        final Game game = controller.getGame();
 
-        for (Player p : controller.getGame().getPlayersInTurnOrder()) {
+        for (Player p : game.getPlayers()) {
             if (p.isValid(strngs, controller, hostCard, stAb)) {
                 players.add(p);
             }
+        }
+        if (players.size() > 1 && !game.getTurnOrder().isDefaultDirection()) {
+            Collections.reverse(players);
         }
         players.removeAll(stAb.getIgnoreEffectPlayers());
 
