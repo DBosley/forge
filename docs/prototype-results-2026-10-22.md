@@ -19,12 +19,15 @@ load. Compare within a wave.
 | Forge `PERFORMANCE_MODE` preference | existing setting | 2.97 | base 3.84 (B) | −23% | no (30/30 identical) |
 | Lazy card loading | existing setting | 3.60 | base 3.84 (B) | −6% per game; startup 5.2 s → 1.6 s | no |
 | Skip library cards in the replacement scan | experiment, not rules-safe | 1.85 | all levers 1.99 (C) | −7% | no |
+| Skip the state-based check after a plain pass (P4a) | patch | 1.31 | all levers 1.79 (D) | −27% | no (30/30, passive and AI opponents) |
+| P4a with AI opponents | patch | 2.87 | P2+P3 3.41 (D) | −16% | no (30/30) |
 
 ## All levers together
 
 Passive opponents, horizon, P2, P3, `PERFORMANCE_MODE`, lazy loading.
 
 - One JVM, idle machine: **1.63 s mean, 1.52 s median, 1.02 s fastest**, startup 1.1 s. Stock was 6.3–6.5 s.
+- Plus P4a, one JVM, idle machine: **1.22 s mean, 1.17 s median, 0.67 s fastest**.
 - 24 workers × 20 games: 3.43 games/s, 1,000 games in 4.9 min. Per game 6.3 s (contention). About 1 GB RSS per
   worker.
 - 16 workers × 20 games, `-XX:ParallelGCThreads=2 -XX:ConcGCThreads=1 -XX:CICompilerCount=2 -Xmx2g`:
@@ -64,8 +67,9 @@ A probe on 10 games: the four commander-rule effects (one per player, `Affected$
 
 ## Next levers toward 1 s
 
-1. Rebuild static effects only when the game state changed since the last rebuild. Largest remaining cost;
-   needs a reliable change signal in `forge-game`.
+1. Done as P4a for the biggest caller: the state-based check after a plain pass (32% of the time before).
+   Remaining after P4a: AI choosing plays 37%, static rebuilds from other callers 30%, replacement scan 29%
+   (overlapping).
 2. Parse property restrictions once per ability instead of per card per check.
 3. Cache each card's replacement-effect list (ceiling about 7%, measured above).
 4. For batches: games on threads inside one JVM (needs a per-game random source and the `Game.maxId` and
@@ -89,4 +93,5 @@ python3 bench.py out/<wave> 30 base perf 'all*2'
 ```
 
 Patch switches on the `goldfish` branch: `forge.ai.inlineEvaluation`, `forge.ai.sequentialAttacks` (P2, P3),
+`forge.game.skipRedundantStateChecks` (P4a),
 `forge.experiment.skipLibraryReplacements` and `forge.experiment.staticProbe` (measurement only).
