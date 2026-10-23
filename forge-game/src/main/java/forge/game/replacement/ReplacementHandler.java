@@ -174,7 +174,8 @@ public class ReplacementHandler {
                 }
             }
         } else {
-            game.forEachCardInGame(visitor, withSideboard);
+            game.forEachCardInGame(visitor, withSideboard,
+                    !preList.anyMatch(c -> c.getOwner().getController().isPassive()) && game.canSkipPassiveHiddenZones());
         }
 
         if (affectedLKI != null) {
@@ -210,7 +211,7 @@ public class ReplacementHandler {
                     candidates.add(c);
                 }
                 return true;
-            }, false);
+            }, false, game.canSkipPassiveHiddenZones());
             candidateMemo = candidates;
             memoEvents = events;
             memoStatics = statics;

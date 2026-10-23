@@ -1162,6 +1162,11 @@ public class GameAction {
         if (game.isGameOver()) {
             return;
         }
+        final long stateEventsBefore = game.getStateEventCount();
+        // decided before the version bump, nothing has changed since the last check if the memo still holds
+        final boolean skipPassiveHidden = !preList.anyMatch(c -> c.getOwner().getController().isPassive())
+                && game.canSkipPassiveHiddenZones();
+        final long staticsBefore = staticsVersion;
         staticsVersion++;
         game.getTracker().freeze(); //prevent views flickering during while updating for state-based effects
 
@@ -1195,7 +1200,7 @@ public class GameAction {
                 }
             }
             return true;
-        }, true);
+        }, true, skipPassiveHidden);
 
         staticAbilities.sort(effectOrder);
 
@@ -1351,7 +1356,23 @@ public class GameAction {
             game.fireDerivedEvent(new GameEventCardStatsChanged(affectedCards));
         }
         staticsVersion++;
+        if (skipPassiveHidden && preList.isEmpty() && staticList.isEmpty() && !touchesPassiveHidden(affectedPerLayer)) {
+            game.keepPassiveHiddenCheck(stateEventsBefore, staticsBefore);
+        }
         game.getTracker().unfreeze();
+    }
+
+    private static boolean touchesPassiveHidden(final Map<StaticAbilityLayer, Set<Card>> affectedPerLayer) {
+        for (final Set<Card> affected : affectedPerLayer.values()) {
+            for (final Card c : affected) {
+                final Zone zone = c.getZone();
+                if (zone != null && (zone.is(ZoneType.Hand) || zone.is(ZoneType.Library))
+                        && zone.getPlayer().getController().isPassive()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private StaticAbility findStaticAbilityToApply(StaticAbilityLayer layer, List<StaticAbility> staticsForLayer, CardCollectionView preList, Map<StaticAbility, CardCollectionView> affectedPerAbility,

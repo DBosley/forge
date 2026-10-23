@@ -99,6 +99,9 @@ public class Game {
     private final ReplacementHandler replacementHandler = new ReplacementHandler(this);
     private final EventBus events = new EventBus("game events");
     private long stateEventCount;
+    private long plainCheckEvents = -1;
+    private long plainCheckStatics = -1;
+    private boolean passiveHiddenPlain;
     private final GameLog gameLog = new GameLog();
 
     private final Zone stackZone = new Zone(ZoneType.Stack, this);
@@ -768,14 +771,19 @@ public class Game {
     }
     // Allows visiting cards in game without allocating a temporary list.
     public void forEachCardInGame(Visitor<Card> visitor, boolean withSideboard) {
+        forEachCardInGame(visitor, withSideboard, false);
+    }
+    // skipPassiveHidden: from canSkipPassiveHiddenZones, for visitors that only collect statics, triggers or replacements
+    public void forEachCardInGame(Visitor<Card> visitor, boolean withSideboard, boolean skipPassiveHidden) {
         for (final Player player : getPlayers()) {
             if (!visitor.visitAll(player.getZone(ZoneType.Graveyard).getCards())) {
                 return;
             }
-            if (!visitor.visitAll(player.getZone(ZoneType.Hand).getCards())) {
+            boolean skip = skipPassiveHidden && player.getController().isPassive();
+            if (!skip && !visitor.visitAll(player.getZone(ZoneType.Hand).getCards())) {
                 return;
             }
-            if (!visitor.visitAll(player.getZone(ZoneType.Library).getCards())) {
+            if (!skip && !visitor.visitAll(player.getZone(ZoneType.Library).getCards())) {
                 return;
             }
             if (!visitor.visitAll(player.getZone(ZoneType.Battlefield).getCards(false))) {
@@ -796,6 +804,49 @@ public class Game {
         }
         visitor.visitAll(getStackZone().getCards());
     }
+
+    // In a goldfish game, whether every card in each passive opponent's hand and library is a plain basic land, so
+    // nothing there can add a static, trigger or replacement effect. Rechecked after any game event or static
+    // rebuild, the same invalidation the replacement candidate memo uses.
+    public boolean canSkipPassiveHiddenZones() {
+        if (!rules.isGoldfish()) {
+            return false;
+        }
+        final long statics = action.getStaticsVersion();
+        if (stateEventCount != plainCheckEvents || statics != plainCheckStatics) {
+            passiveHiddenPlain = passiveHiddenZonesArePlain();
+            plainCheckEvents = stateEventCount;
+            plainCheckStatics = statics;
+        }
+        return passiveHiddenPlain;
+    }
+
+    // a static rebuild that touched nothing in a passive opponent's hand or library and fired no event keeps the check
+    public void keepPassiveHiddenCheck(final long eventsBefore, final long staticsBefore) {
+        if (plainCheckEvents == eventsBefore && plainCheckStatics == staticsBefore && stateEventCount == eventsBefore) {
+            plainCheckStatics = action.getStaticsVersion();
+        }
+    }
+
+    private boolean passiveHiddenZonesArePlain() {
+        for (final Player player : getPlayers()) {
+            if (!player.getController().isPassive()) {
+                continue;
+            }
+            for (final Card c : player.getZone(ZoneType.Hand).getCards()) {
+                if (!c.hasNoTraitEffects()) {
+                    return false;
+                }
+            }
+            for (final Card c : player.getZone(ZoneType.Library).getCards()) {
+                if (!c.hasNoTraitEffects()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     public CardCollectionView getCardsInGame() {
         final CardCollection all = new CardCollection();
         Visitor<Card> visitor = new Visitor<Card>() {

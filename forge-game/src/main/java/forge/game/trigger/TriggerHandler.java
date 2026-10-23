@@ -216,7 +216,7 @@ public class TriggerHandler {
                 }
             }
             return true;
-        });
+        }, false, game.canSkipPassiveHiddenZones());
     }
 
     public final void clearActiveTriggers(final Card c, Zone zoneFrom) {

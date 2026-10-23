@@ -730,6 +730,11 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
         return triggers.add(t);
     }
 
+    boolean hasNoTraitEffects() {
+        return staticAbilities.isEmpty() && triggers.isEmpty() && replacementEffects.isEmpty() && cachedKeywords.isEmpty()
+                && type.isBasicLand();
+    }
+
     public final FCollectionView<StaticAbility> getStaticAbilities() {
         if (card.getChangedCardTraits().isEmpty() && card.getChangedCardTraitsByText().isEmpty()
                 && !card.hasState(CardStateName.LeftSplit)) {
