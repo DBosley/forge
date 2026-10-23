@@ -354,6 +354,7 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
     // LKI copies of cards store CMC separately to avoid shenanigans with the game state visualization
     // breaking when the LKI object is changed to a different card state.
     private int lkiCMC = -1;
+    private int keywordTraitsVersion;
 
     private CombatLki combatLKI;
 
@@ -5295,6 +5296,13 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
     }
     public final KeywordCollection getUnhiddenKeywords(CardState state) {
         return state.getCachedKeywords();
+    }
+
+    public int getKeywordTraitsVersion() {
+        return keywordTraitsVersion;
+    }
+    public void keywordTraitsChanged() {
+        keywordTraitsVersion++;
     }
 
     public final void updateKeywordsCache() {
