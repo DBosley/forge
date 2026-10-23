@@ -121,7 +121,7 @@ public final class GameActionUtil {
 
             // Alt Cost only for Basic Spells
             if (sa.isBasicSpell()) {
-                for (SpellAbility newSA : StaticAbilityAlternativeCost.alternativeCosts(sa, source, activator, staticSources)) {
+                for (SpellAbility newSA : StaticAbilityAlternativeCost.alternativeCosts(sa, source, activator, game.getAction().getAlternativeCostSources(staticSources))) {
                     alternatives.add(newSA);
                     // should only add MayPlay Zones
                     alternatives.addAll(getMayPlaySpellOptions(newSA, source, activator, altCostOnly));
@@ -253,7 +253,7 @@ public final class GameActionUtil {
                 }
 
                 // some needs to check after ability was put on the stack
-                if (game.getAction().hasStaticAbilityAffectingZone(ZoneType.Stack, StaticAbilityLayer.ABILITIES, staticSources)) {
+                if (game.getAction().hasStaticAbilityAffectingZone(ZoneType.Stack, StaticAbilityLayer.ABILITIES, game.getAction().getStackAbilitySources(staticSources))) {
                     Map<StaticAbility, CardPlayOption> oldMayPlay = source.getMayPlay();
                     Zone oldZone = source.getLastKnownZone();
                     Card stackCopy = source;
@@ -307,7 +307,7 @@ public final class GameActionUtil {
                 alternatives.add(newSA);
             }
             // alternative Cost for activated abilities
-            alternatives.addAll(StaticAbilityAlternativeCost.alternativeCosts(sa, source, activator, staticSources));
+            alternatives.addAll(StaticAbilityAlternativeCost.alternativeCosts(sa, source, activator, game.getAction().getAlternativeCostSources(staticSources)));
         }
 
         return alternatives;
