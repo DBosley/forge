@@ -48,11 +48,14 @@ public final class Policy implements AiPlayPolicy {
     private final List<Rule> rules;
     private final List<Hold> holds;
     private final boolean allowRemoved;
+    private final AttackPlan attackPlan;
     private final Map<String, List<String>> charmModes;
 
     private Policy(Set<String> cardNames, List<Rule> rules, List<Hold> holds, boolean allowRemoved, String opponentTurnStops,
                    Condition keepIf, Map<String, List<CardFilter>> triggerTargets, boolean payLifeForUntappedLands,
-                   Map<String, List<CardFilter>> copyChoices, boolean worstFirst, Map<String, List<String>> charmModes) {
+                   Map<String, List<CardFilter>> copyChoices, boolean worstFirst, AttackPlan attackPlan,
+                   Map<String, List<String>> charmModes) {
+        this.attackPlan = attackPlan;
         this.charmModes = charmModes;
         this.worstFirst = worstFirst;
         this.payLifeForUntappedLands = payLifeForUntappedLands;
@@ -119,7 +122,7 @@ public final class Policy implements AiPlayPolicy {
                 doc.get("opponent_turn_stops") == null ? null : String.join(",", (List<String>) doc.get("opponent_turn_stops")),
                 Condition.parse((String) ((Map<String, Object>) doc.getOrDefault("mulligan", Map.of())).get("keep_if"), roles),
                 Map.copyOf(triggerTargets), Boolean.TRUE.equals(doc.get("pay_life_for_untapped_lands")), Map.copyOf(copyChoices),
-                "worst_first".equals(doc.get("hand_disposal")),
+                "worst_first".equals(doc.get("hand_disposal")), AttackPlan.parse(doc.get("attack")),
                 Map.copyOf((Map<String, List<String>>) doc.getOrDefault("charm_modes", Map.of())));
     }
 
@@ -169,6 +172,10 @@ public final class Policy implements AiPlayPolicy {
 
     public boolean keeps(Player player) {
         return keepIf.test(player);
+    }
+
+    public AttackPlan attackPlan() {
+        return attackPlan;
     }
 
     public String opponentTurnStops() {

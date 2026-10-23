@@ -1,6 +1,8 @@
 package forge.goldfish;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -8,6 +10,7 @@ import java.util.Set;
 import forge.LobbyPlayer;
 import forge.ai.AiCostDecision;
 import forge.ai.ComputerUtil;
+import forge.ai.ComputerUtilCombat;
 import forge.ai.ComputerUtilCost;
 import forge.ai.PlayerControllerAi;
 import forge.game.Game;
@@ -19,6 +22,8 @@ import forge.game.cost.CostPayment;
 import forge.game.card.Card;
 import forge.game.card.CardCollection;
 import forge.game.card.CardCollectionView;
+import forge.game.combat.Combat;
+import forge.game.combat.CombatUtil;
 import forge.game.phase.PhaseType;
 import forge.game.player.DelayedReveal;
 import forge.game.player.Player;
@@ -27,6 +32,7 @@ import forge.game.spellability.SpellAbility;
 import forge.game.trigger.WrappedAbility;
 import forge.game.zone.ZoneType;
 import forge.util.collect.FCollectionView;
+import forge.goldfish.policy.AttackPlan;
 import forge.goldfish.policy.Policy;
 
 public final class DeckController extends PlayerControllerAi {
@@ -75,6 +81,35 @@ public final class DeckController extends PlayerControllerAi {
     public List<AbilitySub> chooseModeForAbility(SpellAbility sa, List<AbilitySub> possible, int min, int num, boolean allowRepeat) {
         List<AbilitySub> chosen = policy == null ? null : policy.chooseModes(sa, possible, min, num);
         return chosen != null ? chosen : super.chooseModeForAbility(sa, possible, min, num, allowRepeat);
+    }
+
+    @Override
+    public void declareAttackers(Player attacker, Combat combat) {
+        AttackPlan plan = policy == null ? AttackPlan.FORGE : policy.attackPlan();
+        if (plan == AttackPlan.FORGE) {
+            super.declareAttackers(attacker, combat);
+            return;
+        }
+        List<Player> defenders = combat.getDefenders().stream()
+                .filter(d -> d instanceof Player p && !p.hasLost()).map(d -> (Player) d).toList();
+        if (defenders.isEmpty()) {
+            return;
+        }
+        Map<Player, Integer> lifeLeft = new HashMap<>();
+        defenders.forEach(p -> lifeLeft.put(p, p.getLife()));
+        Comparator<Player> order = plan.order(attacker, defenders, lifeLeft);
+        List<Card> attackers = attacker.getCreaturesInPlay().stream().filter(CombatUtil::canAttack)
+                .sorted(Comparator.comparingInt((Card c) -> -ComputerUtilCombat.damageIfUnblocked(c, defenders.get(0), combat, false)))
+                .toList();
+        for (Card c : attackers) {
+            Player target = defenders.stream().filter(p -> lifeLeft.get(p) > 0 && CombatUtil.canAttack(c, p))
+                    .min(order).orElse(null);
+            if (target == null) {
+                continue;
+            }
+            combat.addAttacker(c, target);
+            lifeLeft.merge(target, -ComputerUtilCombat.damageIfUnblocked(c, target, combat, false), Integer::sum);
+        }
     }
 
     @Override
