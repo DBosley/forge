@@ -50,6 +50,7 @@ import forge.util.TextUtil;
 import org.apache.commons.lang3.time.StopWatch;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 
 /**
@@ -96,6 +97,11 @@ public class PhaseHandler implements java.io.Serializable, IHasForgeLog {
     private static final boolean SKIP_REDUNDANT_STATE_CHECKS = Boolean.getBoolean("forge.game.skipRedundantStateChecks");
     private transient long stateEventsAtLastCheck = -1;
     private transient boolean passedSinceStateCheck = false;
+    private transient Predicate<Player> turnSkipper;
+
+    public void setTurnSkipper(Predicate<Player> turnSkipper) {
+        this.turnSkipper = turnSkipper;
+    }
 
     private final transient Game game;
 
@@ -872,6 +878,10 @@ public class PhaseHandler implements java.io.Serializable, IHasForgeLog {
     private Player getNextActivePlayer() {
         ExtraTurn extraTurn = !extraTurns.isEmpty() ? extraTurns.pop() : null;
         Player nextPlayer = extraTurn != null ? extraTurn.getPlayer() : game.getNextPlayerAfter(playerTurn);
+        if (turnSkipper != null && turnSkipper.test(nextPlayer)) {
+            setPlayerTurn(nextPlayer);
+            return getNextActivePlayer();
+        }
         // The bottom of the extra turn stack is the normal turn
         boolean isExtraTurn = !extraTurns.isEmpty();
 
