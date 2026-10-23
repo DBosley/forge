@@ -880,13 +880,6 @@ public class AiAttackController {
         // nextTurn is now only used by effect from Oracle en-Vec, which can skip check must attack,
         // because creatures not chosen can't attack.
         if (!nextTurn) {
-            ExecutorService executor = Executors.newFixedThreadPool(
-                Runtime.getRuntime().availableProcessors(), r -> {
-                    Thread t = Executors.defaultThreadFactory().newThread(r);
-                    t.setDaemon(true);
-                    return t;
-                }
-            );
             List<Callable<Integer>> tasks = new ArrayList<>();
 
             for (final Card attacker : this.attackers) {
@@ -952,12 +945,29 @@ public class AiAttackController {
                 });
             }
 
-            try {
-                executor.invokeAll(tasks, ai.getGame().getAITimeout(), TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                executor.shutdownNow();
+            if (AiRuntime.SEQUENTIAL_ATTACKS) {
+                for (Callable<Integer> task : tasks) {
+                    try {
+                        task.call();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else {
+                ExecutorService executor = Executors.newFixedThreadPool(
+                    Runtime.getRuntime().availableProcessors(), r -> {
+                        Thread t = Executors.defaultThreadFactory().newThread(r);
+                        t.setDaemon(true);
+                        return t;
+                    }
+                );
+                try {
+                    executor.invokeAll(tasks, ai.getGame().getAITimeout(), TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    executor.shutdownNow();
+                }
             }
 
             if (attackersLeft.isEmpty()) {
