@@ -41,6 +41,7 @@ import forge.game.player.Player;
 import forge.game.player.RegisteredPlayer;
 import forge.goldfish.policy.Policy;
 import forge.gui.GuiBase;
+import forge.localinstance.properties.ForgeConstants;
 import forge.model.FModel;
 import forge.player.GamePlayerUtil;
 import forge.util.MyRandom;
@@ -72,6 +73,9 @@ public final class Runner {
         System.setProperty("java.awt.headless", "true");
         long start = System.nanoTime();
         GuiBase.setInterface(new GuiDesktop());
+        for (String dir : ForgeConstants.PROFILE_DIRS) {
+            java.nio.file.Files.createDirectories(Path.of(dir));
+        }
         FModel.initialize(null, null);
         Policy policy = opts.containsKey("policy") ? Policy.load(Path.of(opts.get("policy"))) : null;
         Deck ours = DeckSerializer.fromFile(new File(deckPath));
