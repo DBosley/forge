@@ -28,6 +28,7 @@ public final class Recorder {
     private final Game game;
     private final Player me;
     private final int horizon;
+    private final boolean threaded;
     private final boolean snapshots = Boolean.getBoolean("goldfish.rounds");
     private int ourTurns;
     private int turns;
@@ -50,10 +51,11 @@ public final class Recorder {
     private List<String> landsThisRound = new ArrayList<>();
     private List<String> activationsThisRound = new ArrayList<>();
 
-    public Recorder(Game game, Player me, int horizon) {
+    public Recorder(Game game, Player me, int horizon, boolean threaded) {
         this.game = game;
         this.me = me;
         this.horizon = horizon;
+        this.threaded = threaded;
     }
 
     @Subscribe
@@ -178,12 +180,20 @@ public final class Recorder {
 
     private boolean payable(SpellAbility sa) {
         Random saved = MyRandom.getRandom();
-        MyRandom.setRandom(new Random(0));
+        setRandom(new Random(0));
         try {
             sa.setActivatingPlayer(me);
             return forge.ai.ComputerUtilMana.canPayManaCost(sa, me, 0, false);
         } finally {
-            MyRandom.setRandom(saved);
+            setRandom(saved);
+        }
+    }
+
+    private void setRandom(Random random) {
+        if (threaded) {
+            MyRandom.setThreadRandom(random);
+        } else {
+            MyRandom.setRandom(random);
         }
     }
 

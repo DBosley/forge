@@ -39,6 +39,11 @@ public final class PassiveController extends PlayerControllerAi {
     }
 
     @Override
+    public boolean isPassive() {
+        return true;
+    }
+
+    @Override
     public boolean mulliganKeepHand(Player firstPlayer, int cardsToReturn) {
         return true;
     }
