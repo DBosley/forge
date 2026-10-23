@@ -1,5 +1,7 @@
 # Moving goldfish-v2 from forge-2.0.15 onto upstream master (2026-10-23)
 
+> Done: `goldfish-v2` now sits on master (the 2.0.15 version is `archive/goldfish-v2-2.0.15`). The `rebase/goldfish-on-master` branch, `~/src/forge-master` and the `~/src/gf-rebase` runner copy with its frozen jars are removed; the main runner now picks jars and `res` per worktree itself. Differences from the branch described here: the static rebuild skip was dropped (no gain after the JIT flag), forced attackers use the upstream PR commit instead of the flag, and the filter commits are #12357 plus our follow-up.
+
 Question: should the fork move from forge-2.0.15 (2026-09-28) plus 16 commits onto Card-Forge master
 (`upstream-master`, 9a6f776b848, 2026-10-23), and what does that buy?
 

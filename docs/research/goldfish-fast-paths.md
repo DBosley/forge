@@ -3,6 +3,8 @@
 Speedups that only make sense in a headless game against passive opponents, behind one switch the runner sets.
 Branch `fast/goldfish-mode` in `~/src/forge-fast` (10 commits on `goldfish-v2`), runner copy in `~/src/gf-fast`.
 
+> Ported: the 10 commits are on the master based `goldfish-v2` as 8 (the two review fixes are squashed into the threading and LKI commits), and the runner changes are in the main runner (`--fast`, `--threads`, `cpu_ms`, ParallelGC). Commit hashes below are from the old branch, which is removed along with `~/src/forge-fast`. `prof.py` moved to `prototype/`; the other tools in `~/src/gf-fast` go when the last agents using it finish.
+
 ## Result
 
 Same 100 seeds, same deck and policy, standard `-D` flags, interleaved in one quiet window (load 4-6). Baseline is
