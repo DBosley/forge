@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Run runner variants on the same seeds, concurrently, and compare speed and outcomes.
 
-usage: bench.py <out-dir> <games> <variant>... (variant names from VARIANTS; "name*2" runs it twice)
+usage: bench.py [--shards N] <out-dir> <games> <variant>... (variant names from VARIANTS; "name*2" runs it twice)
+
+--shards splits each variant's seeds across N processes, for outcomes. Leave it at 1 for timing: every shard
+pays its own JVM startup and warmup.
 """
 
 import json
@@ -55,17 +58,35 @@ VARIANTS = {
     "floor_a": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "jace-floor-a.yaml"), "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
     "floor_b": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "jace-floor-b.yaml"), "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
     "floor_c": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "jace-floor-c.yaml"), "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
+    "floor4now": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "jace-floor4-now.yaml"), "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
     "policy": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "multiverse-reforged.yaml")}),
 }
 
 
-def launch(out: Path, label: str, name: str, games: int, extra_jvm: list[str]):
+def launch(out: Path, label: str, name: str, games: int, extra_jvm: list[str], shards: int = 1):
     home, jvm, opts = VARIANTS[name]
-    args = [str(HERE / "run.sh"), home, *jvm, *extra_jvm, "--", "--deck", str(DECK), "--fish", str(FISH),
-            "--games", str(games), "--seed", "1", "--out", str(out / f"{label}.jsonl")]
-    for key, value in opts.items():
-        args += [f"--{key}", value]
-    return subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=open(out / f"{label}.stderr", "w"))
+    procs = []
+    per = -(-games // shards)
+    for shard in range(shards):
+        first, count = shard * per, min(per, games - shard * per)
+        if count <= 0:
+            break
+        part = label if shards == 1 else f"{label}.{shard}"
+        args = [str(HERE / "run.sh"), home, *jvm, *extra_jvm, "--", "--deck", str(DECK), "--fish", str(FISH),
+                "--games", str(count), "--seed", str(1 + first), "--out", str(out / f"{part}.jsonl")]
+        for key, value in opts.items():
+            args += [f"--{key}", value]
+        procs.append((part, subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=open(out / f"{part}.stderr", "w"))))
+    return procs
+
+
+def merge(out: Path, label: str, parts: list[str]):
+    if parts == [label]:
+        return
+    with open(out / f"{label}.jsonl", "w") as rows, open(out / f"{label}.stderr", "w") as err:
+        for part in parts:
+            rows.write((out / f"{part}.jsonl").read_text())
+            err.write((out / f"{part}.stderr").read_text())
 
 
 def summary(out: Path, label: str) -> dict:
@@ -89,17 +110,23 @@ def summary(out: Path, label: str) -> dict:
 
 
 def main():
-    out, games, names = Path(sys.argv[1]).resolve(), int(sys.argv[2]), sys.argv[3:]
+    argv = sys.argv[1:]
+    shards = 1
+    if argv[:1] == ["--shards"]:
+        shards, argv = int(argv[1]), argv[2:]
+    out, games, names = Path(argv[0]).resolve(), int(argv[1]), argv[2:]
     out.mkdir(parents=True, exist_ok=True)
     runs = []
     for spec in names:
         name, _, times = spec.partition("*")
         for i in range(int(times or 1)):
             label = name if not times else f"{name}-{i + 1}"
-            runs.append((label, launch(out, label, name, games, [])))
-    for label, proc in runs:
-        if proc.wait() != 0:
-            print(f"{label}: exit {proc.returncode}", file=sys.stderr)
+            runs.append((label, launch(out, label, name, games, [], shards)))
+    for label, procs in runs:
+        for part, proc in procs:
+            if proc.wait() != 0:
+                print(f"{part}: exit {proc.returncode}", file=sys.stderr)
+        merge(out, label, [part for part, _ in procs])
     results = [summary(out, label) for label, _ in runs]
     (out / "summary.json").write_text(json.dumps(results, indent=1))
     print(f"{'variant':<12}{'startup':>9}{'mean ms':>9}{'median':>8}{'max':>8}{'ms/turn':>9}"
