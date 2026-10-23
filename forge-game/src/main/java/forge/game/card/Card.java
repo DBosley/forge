@@ -7493,12 +7493,15 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
         return getAllPossibleAbilities(player, removeUnplayable, null);
     }
     public List<SpellAbility> getAllPossibleAbilities(final Player player, final boolean removeUnplayable, final Multimap<SpellAbility, SpellAbility> unhiddenAltCost) {
+        return getAllPossibleAbilities(player, removeUnplayable, unhiddenAltCost, null);
+    }
+    public List<SpellAbility> getAllPossibleAbilities(final Player player, final boolean removeUnplayable, final Multimap<SpellAbility, SpellAbility> unhiddenAltCost, final CardCollectionView staticSources) {
         CardState oState = getOriginalState(CardStateName.Original);
         final List<SpellAbility> abilities = Lists.newArrayList();
         Consumer<SpellAbility> consumer = sa -> {
             abilities.add(sa);
             //add alternative costs as additional spell abilities
-            List<SpellAbility> altCost = GameActionUtil.getAlternativeCosts(sa, player, false);
+            List<SpellAbility> altCost = GameActionUtil.getAlternativeCosts(sa, player, false, staticSources);
             abilities.addAll(altCost);
             if (unhiddenAltCost != null) {
                 unhiddenAltCost.putAll(sa, altCost);
@@ -7513,7 +7516,7 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
 
         if (isFaceDown() && isInZone(ZoneType.Exile)) {
             for (final SpellAbility sa : oState.getSpellAbilities()) {
-                abilities.addAll(GameActionUtil.getAlternativeCosts(sa, player, false));
+                abilities.addAll(GameActionUtil.getAlternativeCosts(sa, player, false, staticSources));
             }
         }
         if (isFaceDown() && isInZone(ZoneType.Command)) {
