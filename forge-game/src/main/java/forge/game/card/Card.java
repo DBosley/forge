@@ -7619,7 +7619,7 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
     }
 
     private static final Map<PaperCard, Card> cp2card = Maps.newHashMap();
-    public static Card getCardForUi(IPaperCard pc) {
+    public static synchronized Card getCardForUi(IPaperCard pc) {
         if (pc instanceof PaperCard) {
             Card res = cp2card.get(pc);
             if (res == null) {
@@ -7688,7 +7688,7 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
     /**
      * Update Card instance for the given PaperCard if any
      */
-    public static void updateCard(PaperCard pc) {
+    public static synchronized void updateCard(PaperCard pc) {
         Card res = cp2card.get(pc);
         if (res != null) {
             cp2card.put(pc, fromPaperCard(pc, null));

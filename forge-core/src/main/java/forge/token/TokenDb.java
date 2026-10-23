@@ -68,7 +68,7 @@ public class TokenDb implements ITokenDatabase {
         return this.rulesByName.containsKey(rule);
     }
 
-    public void preloadTokens() {
+    public synchronized void preloadTokens() {
         for (CardEdition edition : this.editions) {
             for (Map.Entry<String, Collection<CardEdition.EditionEntry>> inSet : edition.getTokens().asMap().entrySet()) {
                 String name = inSet.getKey();
@@ -80,7 +80,7 @@ public class TokenDb implements ITokenDatabase {
         }
     }
 
-    protected boolean loadTokenFromSet(CardEdition edition, String name) {
+    protected synchronized boolean loadTokenFromSet(CardEdition edition, String name) {
         String fullName = String.format("%s_%s", name, edition.getCode().toLowerCase());
         if (allTokenByName.containsKey(fullName)) {
             return true;
@@ -111,7 +111,7 @@ public class TokenDb implements ITokenDatabase {
     // editions that register the token and pass the filter, or null if none.
     // When preferEraMatchedArt is on and hostDate != null, instead picks the
     // legal edition whose release date is closest to hostDate.
-    public PaperToken getTokenFromEditions(String tokenName, Predicate<CardEdition> editionFilter, Date hostDate) {
+    public synchronized PaperToken getTokenFromEditions(String tokenName, Predicate<CardEdition> editionFilter, Date hostDate) {
         if (editionFilter == null) {
             for (CardEdition edition : this.editions) {
                 if (restrictedTokenEntries.contains(edition.getCode() + "/" + tokenName)) continue;
@@ -167,7 +167,7 @@ public class TokenDb implements ITokenDatabase {
     }
 
     @Override
-    public PaperToken getToken(String tokenName, String edition, int artIndex) {
+    public synchronized PaperToken getToken(String tokenName, String edition, int artIndex) {
         // An edition this machine lacks has no tokens of its own: the fallback below picks one.
         CardEdition realEdition = editions.get(edition);
         if (realEdition == null) {
@@ -248,7 +248,7 @@ public class TokenDb implements ITokenDatabase {
     }
 
     @Override
-    public List<PaperToken> getAllTokens() {
+    public synchronized List<PaperToken> getAllTokens() {
         return new ArrayList<>(allTokenByName.values());
     }
 

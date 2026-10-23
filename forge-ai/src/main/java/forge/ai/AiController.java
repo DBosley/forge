@@ -88,9 +88,18 @@ import static java.lang.Math.max;
  */
 public class AiController {
     private AiPlayPolicy playPolicy;
+    // cards Intuition's logic picked, coordinated across the fetches that follow
+    private CardCollection intuitionPicks = new CardCollection();
 
     public void setPlayPolicy(AiPlayPolicy playPolicy) {
         this.playPolicy = playPolicy;
+    }
+
+    public CardCollection getIntuitionPicks() {
+        return intuitionPicks;
+    }
+    public void setIntuitionPicks(CardCollection picks) {
+        intuitionPicks = picks;
     }
 
     private final Player player;

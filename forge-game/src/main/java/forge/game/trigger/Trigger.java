@@ -42,6 +42,7 @@ import forge.util.TextUtil;
 import org.apache.commons.lang3.Strings;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <p>
@@ -52,8 +53,17 @@ import java.util.*;
  * @version $Id$
  */
 public abstract class Trigger extends TriggerReplacementBase {
-    private static int maxId = 0;
-    private static int nextId() { return ++maxId; }
+    private static final AtomicInteger maxId = new AtomicInteger();
+    // every game start resets the ids, so a runner playing games on parallel threads gives each thread its own counter
+    private static final ThreadLocal<int[]> threadMaxId = new ThreadLocal<>();
+    private static int nextId() {
+        final int[] local = threadMaxId.get();
+        return local != null ? ++local[0] : maxId.incrementAndGet();
+    }
+
+    public static void useThreadIds() {
+        threadMaxId.set(new int[1]);
+    }
 
     /**
      * <p>
@@ -61,7 +71,12 @@ public abstract class Trigger extends TriggerReplacementBase {
      * </p>
      */
     public static void resetIDs() {
-        Trigger.maxId = 50000;
+        final int[] local = threadMaxId.get();
+        if (local != null) {
+            local[0] = 50000;
+        } else {
+            maxId.set(50000);
+        }
     }
 
     /** The ID. */
