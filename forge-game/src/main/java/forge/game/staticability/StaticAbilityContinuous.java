@@ -1070,6 +1070,9 @@ public final class StaticAbilityContinuous {
         } else {
             affectedCards.addAll(game.getCardsIn(ZoneType.Battlefield));
         }
+        if (StaticProbe.ENABLED) {
+            StaticProbe.record(hostCard.getName() + " | " + stAb.getParamOrDefault("Affected", "-") + " | " + stAb.getParamOrDefault("AffectedZone", "Battlefield") + " | host in " + hostCard.getZone(), affectedCards.size());
+        }
         if (stAb.hasParam("Affected")) {
             // Handle Shaman's Trance
             CardCollection affectedCardsOriginal = null;
