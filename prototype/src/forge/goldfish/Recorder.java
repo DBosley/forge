@@ -1,5 +1,8 @@
 package forge.goldfish;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -11,7 +14,10 @@ import forge.game.card.CardView;
 import forge.game.event.GameEvent;
 import forge.game.event.GameEventSpellAbilityCast;
 import forge.game.event.GameEventTurnBegan;
+import forge.game.event.GameEventTurnPhase;
+import forge.game.phase.PhaseType;
 import forge.game.player.Player;
+import forge.game.zone.ZoneType;
 
 public final class Recorder {
     private final Game game;
@@ -21,6 +27,7 @@ public final class Recorder {
     private int turns;
     private boolean horizonReached;
     private final Map<String, Integer> plays = new TreeMap<>();
+    private final List<Map<String, Object>> rounds = new ArrayList<>();
 
     public Recorder(Game game, Player me, int horizon) {
         this.game = game;
@@ -37,6 +44,20 @@ public final class Recorder {
                 int colon = text.indexOf(':');
                 String kind = cast.sa().isSpell() ? "" : colon > 0 && colon <= 4 ? ": " + text.substring(0, colon) : ": ability";
                 plays.merge(host.getName() + kind, 1, Integer::sum);
+            }
+            return;
+        }
+        if (event instanceof GameEventTurnPhase phase) {
+            if (phase.phase() == PhaseType.END_OF_TURN && phase.playerTurn().getId() == me.getId()) {
+                Map<String, Object> snap = new LinkedHashMap<>();
+                snap.put("round", ourTurns);
+                snap.put("hand", me.getCardsIn(ZoneType.Hand).stream().map(c -> c.getName() + " (" + c.getCMC() + ")").sorted().toList());
+                snap.put("mana", forge.ai.ComputerUtilMana.getAvailableManaEstimate(me, false));
+                snap.put("lands", me.getCardsIn(ZoneType.Battlefield).stream().filter(c -> c.isLand()).count());
+                snap.put("permanents", me.getCardsIn(ZoneType.Battlefield).stream().filter(c -> !c.isLand())
+                        .map(c -> c.getName()).sorted().toList());
+                snap.put("opponents_life", game.getRegisteredPlayers().stream().filter(p -> p != me).map(Player::getLife).toList());
+                rounds.add(snap);
             }
             return;
         }
@@ -60,6 +81,10 @@ public final class Recorder {
 
     public int turns() {
         return turns;
+    }
+
+    public List<Map<String, Object>> rounds() {
+        return rounds;
     }
 
     public Map<String, Integer> plays() {
