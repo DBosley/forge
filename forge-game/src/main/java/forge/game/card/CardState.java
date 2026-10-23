@@ -83,6 +83,11 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
     private final FCollection<SpellAbility> abilities = new FCollection<>();
     private FCollection<Trigger> triggers = new FCollection<>();
     private FCollection<ReplacementEffect> replacementEffects = new FCollection<>();
+    private static final boolean CACHE_REPLACEMENTS = Boolean.getBoolean("forge.game.cacheReplacementLists");
+    private int replacementVersion;
+    private FCollection<ReplacementEffect> cachedReplacements;
+    private int cachedReplacementsVersion = -1;
+    private KeywordCollection cachedReplacementsKeywords;
     private FCollection<StaticAbility> staticAbilities = new FCollection<>();
     private String imageKey = "";
     private Map<String, String> sVars = Maps.newTreeMap();
@@ -764,6 +769,12 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
         return getReplacementEffects(true);
     }
     public FCollectionView<ReplacementEffect> getReplacementEffects(boolean rulesHost) {
+        boolean cacheable = CACHE_REPLACEMENTS && rulesHost && getCard().isUnchangedForReplacements()
+                && !getCard().hasState(CardStateName.LeftSplit) && !getCard().hasState(CardStateName.RightSplit);
+        if (cacheable && cachedReplacements != null && cachedReplacementsVersion == replacementVersion
+                && cachedReplacementsKeywords == cachedKeywords) {
+            return cachedReplacements;
+        }
         FCollection<ReplacementEffect> result = new FCollection<>(replacementEffects);
         // add Split to Original
         if (getStateName().equals(CardStateName.Original)) {
@@ -799,9 +810,15 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
             result.add(vengeanceRep);
         }
 
+        if (cacheable) {
+            cachedReplacements = result;
+            cachedReplacementsVersion = replacementVersion;
+            cachedReplacementsKeywords = cachedKeywords;
+        }
         return result;
     }
     public boolean addReplacementEffect(final ReplacementEffect replacementEffect) {
+        replacementVersion++;
         return replacementEffects.add(replacementEffect);
     }
 
@@ -949,6 +966,7 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
         }
 
         replacementEffects.clear();
+        replacementVersion++;
         for (ReplacementEffect re : source.replacementEffects) {
             if (re.isIntrinsic()) {
                 ReplacementEffect reCopy = re.copy(card, lki);
@@ -1019,6 +1037,7 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
             }
         }
 
+        replacementVersion++;
         for (ReplacementEffect re : source.replacementEffects) {
             if (re.isIntrinsic()) {
                 replacementEffects.add(re.copy(card, lki));

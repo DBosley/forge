@@ -7138,6 +7138,13 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
         return replacementEffect;
     }
 
+    public boolean isUnchangedForReplacements() {
+        return changedCardTraitsByText.isEmpty() && changedCardTraits.isEmpty()
+                && changedCardKeywords.isEmpty() && changedCardKeywordsByText.isEmpty()
+                && changedCardTypes.isEmpty() && changedCardTypesByText.isEmpty()
+                && getCounters().isEmpty();
+    }
+
     public void updateReplacementEffects(List<ReplacementEffect> list, CardState state, boolean rulesHost) {
         for (final ICardTraitChanges ck : getChangedCardTraitsList(state)) {
             ck.applyReplacementEffect(list);
