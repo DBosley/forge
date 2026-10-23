@@ -716,6 +716,11 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
     }
 
     public final FCollectionView<StaticAbility> getStaticAbilities() {
+        if (card.getChangedCardTraits().isEmpty() && card.getChangedCardTraitsByText().isEmpty()
+                && !card.hasState(CardStateName.LeftSplit) && !card.hasState(CardStateName.RightSplit)
+                && !card.hasRemoveIntrinsic()) {
+            return withKeywordStatics();
+        }
         FCollection<StaticAbility> result = new FCollection<>(staticAbilities);
         if (getStateName().equals(CardStateName.Original)) {
             if (getCard().hasState(CardStateName.LeftSplit))
@@ -725,6 +730,20 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
         }
         card.updateStaticAbilities(result, this);
         return result;
+    }
+    private FCollectionView<StaticAbility> withKeywordStatics() {
+        FCollection<StaticAbility> result = null;
+        if (!cachedKeywords.isEmpty()) {
+            for (KeywordInterface kw : cachedKeywords) {
+                if (!kw.getStaticAbilities().isEmpty()) {
+                    if (result == null) {
+                        result = new FCollection<>(staticAbilities);
+                    }
+                    result.addAll(kw.getStaticAbilities());
+                }
+            }
+        }
+        return result == null ? staticAbilities : result;
     }
     public final boolean addStaticAbility(StaticAbility stab) {
         return staticAbilities.add(stab);
