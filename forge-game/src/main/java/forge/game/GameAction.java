@@ -1071,7 +1071,10 @@ public class GameAction {
 
     // This doesn't check layers or if the ability gets removed by other effects
     public boolean hasStaticAbilityAffectingZone(ZoneType zone, StaticAbilityLayer layer) {
-        for (final Card ca : game.getCardsIn(ZoneType.STATIC_ABILITIES_SOURCE_ZONES)) {
+        return hasStaticAbilityAffectingZone(zone, layer, game.getCardsIn(ZoneType.STATIC_ABILITIES_SOURCE_ZONES));
+    }
+    public boolean hasStaticAbilityAffectingZone(ZoneType zone, StaticAbilityLayer layer, CardCollectionView staticSources) {
+        for (final Card ca : staticSources) {
             for (final StaticAbility stAb : ca.getStaticAbilities()) {
                 if (!stAb.checkConditions(StaticAbilityMode.Continuous)) {
                     continue;
