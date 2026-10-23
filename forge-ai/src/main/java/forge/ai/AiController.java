@@ -1679,6 +1679,15 @@ public class AiController {
 
             return null;
         });
+        if (AiRuntime.INLINE_EVALUATION) {
+            future.run();
+            try {
+                return future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
         Thread t = new Thread(future, "Game AI Eval");
         t.setDaemon(true);
         t.start();
