@@ -100,7 +100,9 @@ public class Match {
         game.fireEvent(new GameEventGameFinished());
 
         //run GC after game is finished
-        System.gc();
+        if (!rules.isGoldfish()) {
+            System.gc();
+        }
     }
 
     public GameOutcome getOutcomeById(int id) {
