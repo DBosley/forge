@@ -19,6 +19,9 @@ INLINE = "-Dforge.ai.inlineEvaluation=true"
 SEQUENTIAL = "-Dforge.ai.sequentialAttacks=true"
 SKIP_LIBRARY = "-Dforge.experiment.skipLibraryReplacements=true"
 SKIP_STATE = "-Dforge.game.skipRedundantStateChecks=true"
+SKIP_STATICS = "-Dforge.game.skipUnchangedStatics=true"
+CACHE_REPL = "-Dforge.game.cacheReplacementLists=true"
+MEMO_REPL = "-Dforge.game.memoReplacementCandidates=true"
 
 VARIANTS = {
     "stock": ("eager", [], {"opponents": "ai", "horizon": "0"}),
@@ -34,6 +37,17 @@ VARIANTS = {
     "skip": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_LIBRARY], {"opponents": "passive", "horizon": "10"}),
     "allstate": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE], {"opponents": "passive", "horizon": "10"}),
     "detstate": ("eager", [INLINE, SEQUENTIAL, SKIP_STATE], {"opponents": "ai", "horizon": "10"}),
+    "statics": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS], {"opponents": "passive", "horizon": "10"}),
+    "turns": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE], {"opponents": "passive", "horizon": "10", "opponent-turns": "skip"}),
+    "both": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS], {"opponents": "passive", "horizon": "10", "opponent-turns": "skip"}),
+    "detstatics": ("eager", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS], {"opponents": "ai", "horizon": "10"}),
+    "stops": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS], {"opponents": "passive", "horizon": "10", "opponent-stops": "upkeep,end_of_turn"}),
+    "nostops": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS], {"opponents": "passive", "horizon": "10", "opponent-stops": "none"}),
+    "cache": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL], {"opponents": "passive", "horizon": "10", "opponent-stops": "upkeep,end_of_turn"}),
+    "detcache": ("eager", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL], {"opponents": "ai", "horizon": "10"}),
+    "memo": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "opponent-stops": "upkeep,end_of_turn"}),
+    "detmemo": ("eager", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "ai", "horizon": "10"}),
+    "policy": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "multiverse-reforged.yaml")}),
 }
 
 
