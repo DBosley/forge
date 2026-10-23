@@ -10,7 +10,7 @@ import forge.game.card.Card;
 
 record CardFilter(String text, List<String> words, Map<String, Set<String>> roles) implements Predicate<Card> {
     private static final Set<String> KINDS = Set.of("creature", "planeswalker", "land", "artifact", "enchantment",
-            "instant", "sorcery", "token", "nontoken", "legendary", "card");
+            "instant", "sorcery", "token", "nontoken", "legendary", "used", "card");
 
     static CardFilter parse(String text, Map<String, Set<String>> roles) {
         List<String> words = Arrays.asList(text.trim().split("\\s+"));
@@ -43,6 +43,7 @@ record CardFilter(String text, List<String> words, Map<String, Set<String>> role
                 case "token" -> c.isToken();
                 case "nontoken" -> !c.isToken();
                 case "legendary" -> c.getType().isLegendary();
+                case "used" -> c.getPlaneswalkerAbilityActivated() > 0;
                 case "card" -> true;
                 default -> roles.get(w.substring(5)).contains(c.getName());
             };

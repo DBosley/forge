@@ -27,7 +27,6 @@ import com.google.gson.Gson;
 import forge.GuiDesktop;
 import forge.LobbyPlayer;
 import forge.ai.AIOption;
-import forge.ai.PlayerControllerAi;
 import forge.deck.Deck;
 import forge.deck.io.DeckSerializer;
 import forge.game.Game;
@@ -83,7 +82,7 @@ public final class Runner {
         List<RegisteredPlayer> players = new ArrayList<>();
         RegisteredPlayer me = RegisteredPlayer.forCommander(ours);
         String stopsOpt = opts.getOrDefault("opponent-stops", policy != null && policy.opponentTurnStops() != null ? policy.opponentTurnStops() : "all");
-        DeckLobbyPlayer deckPlayer = new DeckLobbyPlayer(DECK_PLAYER, parseStops(stopsOpt));
+        DeckLobbyPlayer deckPlayer = new DeckLobbyPlayer(DECK_PLAYER, parseStops(stopsOpt), policy);
         deckPlayer.setAiProfile("Default");
         me.setPlayer(deckPlayer);
         players.add(me);
@@ -128,9 +127,6 @@ public final class Runner {
         Game game = match.createGame();
         game.setNoGUIUser();
         Player me = game.getPlayers().stream().filter(p -> p.getName().equals(DECK_PLAYER)).findFirst().orElseThrow();
-        if (policy != null) {
-            ((PlayerControllerAi) me.getController()).getAi().setPlayPolicy(policy);
-        }
         if (skipOpponentTurns) {
             game.getPhaseHandler().setTurnSkipper(p -> p != me);
         }
@@ -183,6 +179,9 @@ public final class Runner {
         row.put("table_dead_round", tableDead ? recorder.ourTurns() : null);
         row.put("opponents_life", opponents.stream().map(Player::getLife).toList());
         row.put("plays", recorder.plays());
+        if (Boolean.getBoolean("goldfish.rounds")) {
+            row.put("rounds", recorder.rounds());
+        }
         row.put("log_hash", logHash(game));
         String logDir = System.getProperty("goldfish.logDir");
         if (logDir != null) {

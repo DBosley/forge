@@ -20,12 +20,15 @@ import forge.ai.AiPlayDecision;
 import forge.ai.AiPlayPolicy;
 import forge.ai.ComputerUtilCard;
 import forge.ai.ComputerUtilCost;
+import forge.ai.ComputerUtilMana;
 import forge.game.GameEntity;
 import forge.game.card.Card;
 import forge.game.player.Player;
 import forge.game.spellability.SpellAbility;
 
 public final class Policy implements AiPlayPolicy {
+    private static final boolean DEBUG = Boolean.getBoolean("goldfish.policyDebug");
+
     private record Rule(Selector selector, Condition when, boolean force, List<CardFilter> targets) {
     }
 
@@ -34,12 +37,17 @@ public final class Policy implements AiPlayPolicy {
 
     private final Set<String> cardNames;
     private final String opponentTurnStops;
+    private final Condition keepIf;
+    private final Map<String, List<CardFilter>> triggerTargets;
     private final List<Rule> rules;
     private final List<Hold> holds;
     private final boolean allowRemoved;
 
-    private Policy(Set<String> cardNames, List<Rule> rules, List<Hold> holds, boolean allowRemoved, String opponentTurnStops) {
+    private Policy(Set<String> cardNames, List<Rule> rules, List<Hold> holds, boolean allowRemoved, String opponentTurnStops,
+                   Condition keepIf, Map<String, List<CardFilter>> triggerTargets) {
         this.cardNames = cardNames;
+        this.keepIf = keepIf;
+        this.triggerTargets = triggerTargets;
         this.opponentTurnStops = opponentTurnStops;
         this.rules = rules;
         this.holds = holds;
@@ -74,6 +82,12 @@ public final class Policy implements AiPlayPolicy {
                     Boolean.TRUE.equals(r.get("force")), targets));
         }
 
+        Map<String, List<CardFilter>> triggerTargets = new HashMap<>();
+        ((Map<String, List<String>>) doc.getOrDefault("trigger_targets", Map.of())).forEach((card, prefs) -> {
+            names.add(card);
+            triggerTargets.put(card, prefs.stream().map(t -> CardFilter.parse(t, roles)).toList());
+        });
+
         List<Hold> holds = new ArrayList<>();
         for (Map<String, Object> h : (List<Map<String, Object>>) doc.getOrDefault("hold", List.of())) {
             Hold hold = new Hold(CardFilter.parse((String) h.get("card"), roles), Condition.parse((String) h.get("unless"), roles));
@@ -81,13 +95,19 @@ public final class Policy implements AiPlayPolicy {
             holds.add(hold);
         }
         return new Policy(Set.copyOf(names), List.copyOf(rules), List.copyOf(holds), Boolean.TRUE.equals(doc.get("allow_ai_removed")),
-                doc.get("opponent_turn_stops") == null ? null : String.join(",", (List<String>) doc.get("opponent_turn_stops")));
+                doc.get("opponent_turn_stops") == null ? null : String.join(",", (List<String>) doc.get("opponent_turn_stops")),
+                Condition.parse((String) ((Map<String, Object>) doc.getOrDefault("mulligan", Map.of())).get("keep_if"), roles),
+                Map.copyOf(triggerTargets));
     }
 
     private static void addName(Set<String> names, CardFilter filter) {
         if (filter.cardName() != null) {
             names.add(filter.cardName());
         }
+    }
+
+    public boolean keeps(Player player) {
+        return keepIf.test(player);
     }
 
     public String opponentTurnStops() {
@@ -113,46 +133,81 @@ public final class Policy implements AiPlayPolicy {
                 }
                 sa.setActivatingPlayer(player);
                 if (rule.targets().isEmpty() && !rule.force()) {
-                    if (ai.canPlayAndPayFor(sa) == AiPlayDecision.WillPlay) {
+                    AiPlayDecision decision = ai.canPlayAndPayFor(sa);
+                    debug(player, rule, sa, "ai " + decision);
+                    if (decision == AiPlayDecision.WillPlay) {
                         return sa;
                     }
-                } else if (prepare(sa, player, rule.targets())) {
-                    return sa;
+                } else {
+                    String why = prepare(sa, player, rule.targets());
+                    debug(player, rule, sa, why == null ? "play" : why);
+                    if (why == null) {
+                        return sa;
+                    }
                 }
             }
         }
         return null;
     }
 
-    private boolean prepare(SpellAbility sa, Player player, List<CardFilter> preferences) {
+    private String prepare(SpellAbility sa, Player player, List<CardFilter> preferences) {
         if (!sa.canPlay()) {
-            return false;
+            return "can't play now";
         }
-        if (sa.usesTargeting()) {
-            sa.resetTargets();
-            List<Card> options = new ArrayList<>();
-            for (GameEntity e : sa.getTargetRestrictions().getAllCandidates(sa)) {
-                if (e instanceof Card c && sa.canTarget(c)) {
-                    options.add(c);
-                }
-            }
-            options.sort(Comparator.comparingInt((Card c) -> rank(c, preferences)).thenComparingInt(Policy::value));
-            for (Card c : options) {
-                if (sa.getTargets().size() >= sa.getMaxTargets() || rank(c, preferences) == Integer.MAX_VALUE) {
-                    break;
-                }
-                sa.getTargets().add(c);
-            }
-            if (!sa.isTargetNumberValid()) {
+        if (sa.usesTargeting() && !setTargets(sa, preferences)) {
+            return "no target";
+        }
+        if (sa.costHasManaX()) {
+            int x = ComputerUtilMana.determineLeftoverMana(sa, player, false);
+            if (x < 1) {
                 sa.resetTargets();
-                return false;
+                return "x below 1";
             }
+            sa.setXManaCostPaid(x);
         }
         if (!ComputerUtilCost.canPayCost(sa, player, false)) {
+            sa.resetTargets();
+            return "can't pay";
+        }
+        return null;
+    }
+
+    private static void debug(Player player, Rule rule, SpellAbility sa, String outcome) {
+        if (DEBUG) {
+            System.err.printf("POLICY turn %d mana %d phase %s %s | %s | %s%n", player.getTurn(),
+                    ComputerUtilMana.getAvailableManaEstimate(player, false), player.getGame().getPhaseHandler().getPhase(),
+                    rule.selector().text(), sa.getHostCard().getName(), outcome);
+        }
+    }
+
+    private static boolean setTargets(SpellAbility sa, List<CardFilter> preferences) {
+        sa.resetTargets();
+        List<Card> options = new ArrayList<>();
+        for (GameEntity e : sa.getTargetRestrictions().getAllCandidates(sa)) {
+            if (e instanceof Card c && sa.canTarget(c)) {
+                options.add(c);
+            }
+        }
+        options.sort(Comparator.comparingInt((Card c) -> rank(c, preferences)).thenComparingInt(Policy::value));
+        for (Card c : options) {
+            if (sa.getTargets().size() >= sa.getMaxTargets() || rank(c, preferences) == Integer.MAX_VALUE) {
+                break;
+            }
+            sa.getTargets().add(c);
+        }
+        if (sa.getTargets().isEmpty() || !sa.isTargetNumberValid()) {
             sa.resetTargets();
             return false;
         }
         return true;
+    }
+
+    public boolean retargetTrigger(Card host, SpellAbility sa) {
+        List<CardFilter> preferences = triggerTargets.get(host.getName());
+        if (preferences == null || !sa.usesTargeting()) {
+            return false;
+        }
+        return setTargets(sa, preferences);
     }
 
     private static int rank(Card c, List<CardFilter> preferences) {

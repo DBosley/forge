@@ -47,6 +47,10 @@ VARIANTS = {
     "detcache": ("eager", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL], {"opponents": "ai", "horizon": "10"}),
     "memo": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "opponent-stops": "upkeep,end_of_turn"}),
     "detmemo": ("eager", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "ai", "horizon": "10"}),
+    "nopol": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "opponent-stops": "upkeep,end_of_turn"}),
+    "nopol_basics": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "opponent-stops": "upkeep,end_of_turn", "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
+    "pol": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "multiverse-reforged.yaml")}),
+    "pol_basics": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE, SKIP_STATICS, CACHE_REPL, MEMO_REPL], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "multiverse-reforged.yaml"), "fish": str(HERE / "decks" / "goldfish-basics.dck")}),
     "policy": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE], {"opponents": "passive", "horizon": "10", "policy": str(HERE / "policies" / "multiverse-reforged.yaml")}),
 }
 
