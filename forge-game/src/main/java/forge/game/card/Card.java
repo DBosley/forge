@@ -490,6 +490,12 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
         view.updateState(this);
     }
 
+    private void updateCountersForView() {
+        if (game == null || !game.getRules().isGoldfish()) {
+            view.updateCounters(this);
+        }
+    }
+
     public CardState getCurrentState() {
         return currentState;
     }
@@ -1792,7 +1798,7 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
             int addedThisTurn = getGame().getCounterAddedThisTurn(counterType, this);
             setCounters(counterType, newValue);
             getGame().addCounterAddedThisTurn(source, counterType, this, addAmount);
-            view.updateCounters(this);
+            updateCountersForView();
 
             //fire card stats changed event if p/t bonuses or loyalty changed from added counters
             if (powerBonusBefore != getPowerBonusFromCounters() || toughnessBonusBefore != getToughnessBonusFromCounters() || loyaltyBefore != getCurrentLoyalty()) {
@@ -1835,7 +1841,7 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
             setCounters(counterType, newValue);
 
             getGame().addCounterAddedThisTurn(source, counterType, this, addAmount);
-            view.updateCounters(this);
+            updateCountersForView();
         }
         if (createCounterStatic(counterType)) {
             updateKeywords();
@@ -1916,7 +1922,7 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
         int loyaltyBefore = getCurrentLoyalty();
 
         setCounters(counterName, newValue);
-        view.updateCounters(this);
+        updateCountersForView();
 
         if (newValue <= 0 && (counterName.is(CounterEnumType.MANABOND) || counterName.isKeywordCounter())) {
             updateKeywords();
@@ -1952,7 +1958,7 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
     public final void setCounters(final Multiset<CounterType> allCounters) {
         boolean changed = counters.contains(CounterEnumType.MANABOND) || counters.elementSet().stream().anyMatch(CounterType::isKeywordCounter);
         counters = allCounters;
-        view.updateCounters(this);
+        updateCountersForView();
 
         if (!isLKI()) {
             for (CounterType ct : counters.elementSet()) {
@@ -1972,7 +1978,7 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
         boolean changed = counters.contains(CounterEnumType.MANABOND) || counters.elementSet().stream().anyMatch(CounterType::isKeywordCounter);
 
         counters.clear();
-        view.updateCounters(this);
+        updateCountersForView();
 
         if (changed) {
             updateKeywords();

@@ -157,6 +157,7 @@ public abstract class SpellAbility extends CardTraitBase implements ISpellAbilit
     private Integer dividedValue = null;
 
     private SpellAbilityView view;
+    private boolean viewWithoutTracker;
 
     private CardPlayOption mayPlay;
 
@@ -252,8 +253,10 @@ public abstract class SpellAbility extends CardTraitBase implements ISpellAbilit
             }
         }
 
-        view.updateHostCard(this);
-        view.updateDescription(this); //description can change if host card does
+        if (view != null) {
+            view.updateHostCard(this);
+            view.updateDescription(this); //description can change if host card does
+        }
     }
 
     @Override
@@ -1155,7 +1158,9 @@ public abstract class SpellAbility extends CardTraitBase implements ISpellAbilit
         if (subAbility != null) {
             subAbility.setParent(this);
         }
-        view.updateDescription(this); //description changes when sub-abilities change
+        if (view != null) {
+            view.updateDescription(this); //description changes when sub-abilities change
+        }
     }
 
     public Map<String, SpellAbility> getAdditionalAbilities() {
@@ -1181,7 +1186,9 @@ public abstract class SpellAbility extends CardTraitBase implements ISpellAbilit
             }
             additionalAbilities.put(name, sa);
         }
-        view.updateDescription(this); //description changes when sub-abilities change
+        if (view != null) {
+            view.updateDescription(this); //description changes when sub-abilities change
+        }
     }
 
     public Map<String, List<AbilitySub>> getAdditionalAbilityLists() {
@@ -1204,7 +1211,9 @@ public abstract class SpellAbility extends CardTraitBase implements ISpellAbilit
             }
             additionalAbilityLists.put(name, result);
         }
-        view.updateDescription(this);
+        if (view != null) {
+            view.updateDescription(this);
+        }
     }
     public void appendSubAbility(final AbilitySub toAdd) {
         getTailAbility().setSubAbility(toAdd);
@@ -1253,7 +1262,13 @@ public abstract class SpellAbility extends CardTraitBase implements ISpellAbilit
             copyHelper(clone, host, lki || keepTextChanges);
 
             // need CardState before View
-            clone.view = new SpellAbilityView(clone, lki || host.getGame() == null ? null : host.getGame().getTracker());
+            if (host.getGame() != null && host.getGame().getRules().isGoldfish()) {
+                // built on first getView, most copies are ai what-ifs that never reach an event
+                clone.view = null;
+                clone.viewWithoutTracker = lki;
+            } else {
+                clone.view = new SpellAbilityView(clone, lki || host.getGame() == null ? null : host.getGame().getTracker());
+            }
 
             // always set this to false, it is only set in CopyEffect
             clone.mayChooseNewTargets = false;
@@ -2383,6 +2398,10 @@ public abstract class SpellAbility extends CardTraitBase implements ISpellAbilit
     }
 
     public SpellAbilityView getView() {
+        if (view == null) {
+            Game game = hostCard == null ? null : hostCard.getGame();
+            view = new SpellAbilityView(this, viewWithoutTracker || game == null ? null : game.getTracker());
+        }
         view.updateHostCard(this);
         view.updateDescription(this);
         view.updatePromptIfOnlyPossibleAbility(this);
