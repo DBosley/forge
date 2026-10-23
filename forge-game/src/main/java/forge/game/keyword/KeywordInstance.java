@@ -115,6 +115,7 @@ public abstract class KeywordInstance<T extends KeywordInstance<?>> implements K
             // remove added extra
             Sentry.removeExtra("Card");
             Sentry.removeExtra("Keyword");
+            host.keywordTraitsChanged();
         }
     }
 

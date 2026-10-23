@@ -89,6 +89,12 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
     private int cachedReplacementsVersion = -1;
     private KeywordCollection cachedReplacementsKeywords;
     private FCollection<StaticAbility> staticAbilities = new FCollection<>();
+    private static final boolean CACHE_STATICS = Boolean.getBoolean("forge.game.cacheStaticLists");
+    private int staticVersion;
+    private FCollectionView<StaticAbility> cachedStatics;
+    private int cachedStaticsVersion = -1;
+    private KeywordCollection cachedStaticsKeywords;
+    private int cachedStaticsKeywordTraits;
     private String imageKey = "";
     private Map<String, String> sVars = Maps.newTreeMap();
     private Map<String, SpellAbility> abilityForTrigger = Maps.newHashMap();
@@ -745,6 +751,10 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
         return result;
     }
     private FCollectionView<StaticAbility> withKeywordStatics() {
+        if (CACHE_STATICS && cachedStatics != null && cachedStaticsVersion == staticVersion
+                && cachedStaticsKeywords == cachedKeywords && cachedStaticsKeywordTraits == card.getKeywordTraitsVersion()) {
+            return cachedStatics;
+        }
         FCollection<StaticAbility> result = null;
         if (!cachedKeywords.isEmpty()) {
             for (KeywordInterface kw : cachedKeywords) {
@@ -756,12 +766,21 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
                 }
             }
         }
-        return result == null ? staticAbilities : result;
+        FCollectionView<StaticAbility> statics = result == null ? staticAbilities : result;
+        if (CACHE_STATICS) {
+            cachedStatics = statics;
+            cachedStaticsVersion = staticVersion;
+            cachedStaticsKeywords = cachedKeywords;
+            cachedStaticsKeywordTraits = card.getKeywordTraitsVersion();
+        }
+        return statics;
     }
     public final boolean addStaticAbility(StaticAbility stab) {
+        staticVersion++;
         return staticAbilities.add(stab);
     }
     public final boolean removeStaticAbility(StaticAbility stab) {
+        staticVersion++;
         return staticAbilities.remove(stab);
     }
 
@@ -979,6 +998,7 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
         }
 
         staticAbilities.clear();
+        staticVersion++;
         for (StaticAbility sa : source.staticAbilities) {
             if (sa.isIntrinsic()) {
                 staticAbilities.add(sa.copy(card, lki));
@@ -1044,6 +1064,7 @@ public class CardState implements GameObject, IHasSVars, ITranslatable {
             }
         }
 
+        staticVersion++;
         for (StaticAbility sa : source.staticAbilities) {
             if (sa.isIntrinsic()) {
                 staticAbilities.add(sa.copy(card, lki));
