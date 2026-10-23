@@ -7,7 +7,7 @@ import com.google.common.collect.Lists;
 
 import forge.card.mana.ManaCostParser;
 import forge.game.card.Card;
-import forge.game.card.CardCollection;
+import forge.game.card.CardCollectionView;
 import forge.game.cost.Cost;
 import forge.game.player.Player;
 import forge.game.spellability.OptionalCost;
@@ -17,88 +17,97 @@ import forge.game.zone.ZoneType;
 public class StaticAbilityAlternativeCost {
 
     public static List<SpellAbility> alternativeCosts(final SpellAbility sa, final Card source, final Player pl) {
+        return alternativeCosts(sa, source, pl, source.getGame().getCardsIn(ZoneType.STATIC_ABILITIES_SOURCE_ZONES));
+    }
+
+    public static List<SpellAbility> alternativeCosts(final SpellAbility sa, final Card source, final Player pl, final CardCollectionView staticSources) {
         List<SpellAbility> result = Lists.newArrayList();
         // add source first in case it's LKI (alternate host)
-        CardCollection list = new CardCollection(source);
-        list.addAll(source.getGame().getCardsIn(ZoneType.STATIC_ABILITIES_SOURCE_ZONES));
-        for (final Card ca : list) {
-            for (final StaticAbility stAb : ca.getStaticAbilities()) {
-                if (!stAb.checkMode(StaticAbilityMode.AlternativeCost)) {
-                    continue;
-                }
-
-                // apply() is cheap, checkConditions() may scan the battlefield
-                if (!apply(stAb, sa, source, pl)) {
-                    continue;
-                }
-
-                if (!stAb.checkConditions()) {
-                    continue;
-                }
-
-                String costTemplate = stAb.getParam("Cost");
-                costTemplate = costTemplate.replace("ConvertedManaCost", Integer.toString(source.getCMC()));
-
-                Cost cost = new Cost(costTemplate, sa.isAbility());
-                // set the cost to this directly to bypass non mana cost
-                final SpellAbility newSA = sa.isAbility() ? sa.copyWithDefinedCost(cost) : sa.copyWithManaCostReplaced(pl, cost);
-                newSA.setActivatingPlayer(pl);
-                newSA.setBasicSpell(false);
-
-                if (stAb.hasParam("XAlternative")) {
-                    newSA.putParam("XAlternative", stAb.getParam("XAlternative"));
-                }
-
-                if (stAb.hasParam("Announce")) {
-                    newSA.putParam("Announce", stAb.getParam("Announce"));
-                }
-
-                if (stAb.hasParam("ManaRestriction")) {
-                    newSA.putParam("ManaRestriction", stAb.getParam("ManaRestriction"));
-                }
-
-                if (!stAb.getHostCard().isImmutable()) {
-                    Set<ZoneType> zones = stAb.getActiveZone();
-                    if (zones != null && zones.size() == 1) {
-                        newSA.getRestrictions().setZone(zones.stream().findFirst().get());
-                    }
-                }
-
-                if (stAb.hasParam("StackDescription")) {
-                    newSA.putParam("StackDescription", stAb.getParam("StackDescription"));
-                }
-
-                // makes new SpellDescription
-                final StringBuilder sb = new StringBuilder();
-
-                // CostDesc only for ManaCost?
-                if (sa.isAbility()) {
-                    newSA.putParam("CostDesc", stAb.hasParam("CostDesc") ? ManaCostParser.parse(stAb.getParam("CostDesc")) : cost.toSimpleString());
-                    sb.append(newSA.getCostDescription());
-                }
-
-                // skip reminder text for now, Keywords might be too complicated
-                //sb.append("(").append(newKi.getReminderText()).append(")");
-                if (sa.isSpell()) {
-                    sb.append(sa.getDescription());
-                    if (source.equals(stAb.getHostCard())) {
-                        newSA.addOptionalCost(OptionalCost.AltCost);
-                        sb.append(" ("+ stAb.getParam("Description") +") ");
-                    } else {
-                        sb.append(" (by paying " + cost.toSimpleString() + " instead of its mana cost)");
-                    }
-                }
-                newSA.setDescription(sb.toString());
-
-                // Support for custom cards alternative costs targeting
-                if (stAb.hasParam("Named")) {
-                    newSA.setName(stAb.getParam("Named"));
-                }
-
-                result.add(newSA);
+        addAlternativeCosts(result, source, sa, source, pl);
+        for (final Card ca : staticSources) {
+            if (!ca.equals(source)) {
+                addAlternativeCosts(result, ca, sa, source, pl);
             }
         }
         return result;
+    }
+
+    private static void addAlternativeCosts(final List<SpellAbility> result, final Card ca, final SpellAbility sa, final Card source, final Player pl) {
+        for (final StaticAbility stAb : ca.getStaticAbilities()) {
+            if (!stAb.checkMode(StaticAbilityMode.AlternativeCost)) {
+                continue;
+            }
+
+            // apply() is cheap, checkConditions() may scan the battlefield
+            if (!apply(stAb, sa, source, pl)) {
+                continue;
+            }
+
+            if (!stAb.checkConditions()) {
+                continue;
+            }
+
+            String costTemplate = stAb.getParam("Cost");
+            costTemplate = costTemplate.replace("ConvertedManaCost", Integer.toString(source.getCMC()));
+
+            Cost cost = new Cost(costTemplate, sa.isAbility());
+            // set the cost to this directly to bypass non mana cost
+            final SpellAbility newSA = sa.isAbility() ? sa.copyWithDefinedCost(cost) : sa.copyWithManaCostReplaced(pl, cost);
+            newSA.setActivatingPlayer(pl);
+            newSA.setBasicSpell(false);
+
+            if (stAb.hasParam("XAlternative")) {
+                newSA.putParam("XAlternative", stAb.getParam("XAlternative"));
+            }
+
+            if (stAb.hasParam("Announce")) {
+                newSA.putParam("Announce", stAb.getParam("Announce"));
+            }
+
+            if (stAb.hasParam("ManaRestriction")) {
+                newSA.putParam("ManaRestriction", stAb.getParam("ManaRestriction"));
+            }
+
+            if (!stAb.getHostCard().isImmutable()) {
+                Set<ZoneType> zones = stAb.getActiveZone();
+                if (zones != null && zones.size() == 1) {
+                    newSA.getRestrictions().setZone(zones.stream().findFirst().get());
+                }
+            }
+
+            if (stAb.hasParam("StackDescription")) {
+                newSA.putParam("StackDescription", stAb.getParam("StackDescription"));
+            }
+
+            // makes new SpellDescription
+            final StringBuilder sb = new StringBuilder();
+
+            // CostDesc only for ManaCost?
+            if (sa.isAbility()) {
+                newSA.putParam("CostDesc", stAb.hasParam("CostDesc") ? ManaCostParser.parse(stAb.getParam("CostDesc")) : cost.toSimpleString());
+                sb.append(newSA.getCostDescription());
+            }
+
+            // skip reminder text for now, Keywords might be too complicated
+            //sb.append("(").append(newKi.getReminderText()).append(")");
+            if (sa.isSpell()) {
+                sb.append(sa.getDescription());
+                if (source.equals(stAb.getHostCard())) {
+                    newSA.addOptionalCost(OptionalCost.AltCost);
+                    sb.append(" ("+ stAb.getParam("Description") +") ");
+                } else {
+                    sb.append(" (by paying " + cost.toSimpleString() + " instead of its mana cost)");
+                }
+            }
+            newSA.setDescription(sb.toString());
+
+            // Support for custom cards alternative costs targeting
+            if (stAb.hasParam("Named")) {
+                newSA.setName(stAb.getParam("Named"));
+            }
+
+            result.add(newSA);
+        }
     }
 
     private static boolean apply(final StaticAbility stAb, final SpellAbility sa, final Card source, final Player pl) {

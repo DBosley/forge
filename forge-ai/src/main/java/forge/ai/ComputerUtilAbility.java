@@ -83,9 +83,10 @@ public class ComputerUtilAbility {
 
     public static List<SpellAbility> getSpellAbilities(final CardCollectionView all, final Player activator) {
         final List<SpellAbility> spellAbilities = Lists.newArrayList();
+        final CardCollectionView staticSources = activator.getGame().getCardsIn(ZoneType.STATIC_ABILITIES_SOURCE_ZONES);
         for (final Card c : all) {
             Multimap<SpellAbility, SpellAbility> unhiddenAltCost = ArrayListMultimap.create();
-            List<SpellAbility> possible = c.getAllPossibleAbilities(activator, false, unhiddenAltCost);
+            List<SpellAbility> possible = c.getAllPossibleAbilities(activator, false, unhiddenAltCost, staticSources);
             for (SpellAbility sa : unhiddenAltCost.keySet()) {
                 if (possible.contains(sa)) {
                     // when SA can also be played as basic exclude its AltCost to prevent redundant check later
@@ -106,9 +107,10 @@ public class ComputerUtilAbility {
         }
 
         final List<SpellAbility> newAbilities = Lists.newArrayList();
+        final CardCollectionView staticSources = activator.getGame().getCardsIn(ZoneType.STATIC_ABILITIES_SOURCE_ZONES);
         for (SpellAbility sa : originListWithAddCosts) {
             // determine which alternative costs are cheaper than the original and prioritize them
-            List<SpellAbility> saAltCosts = GameActionUtil.getAlternativeCosts(sa, activator, false);
+            List<SpellAbility> saAltCosts = GameActionUtil.getAlternativeCosts(sa, activator, false, staticSources);
             List<SpellAbility> priorityAltSa = Lists.newArrayList();
             List<SpellAbility> otherAltSa = Lists.newArrayList();
             for (SpellAbility altSa : saAltCosts) {
