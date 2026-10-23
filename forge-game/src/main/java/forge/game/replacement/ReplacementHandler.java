@@ -53,6 +53,8 @@ import forge.util.Visitor;
 public class ReplacementHandler {
     private final Game game;
 
+    private static final boolean EXPERIMENT_SKIP_LIBRARY = Boolean.getBoolean("forge.experiment.skipLibraryReplacements");
+
     private Set<ReplacementEffect> hasRun = Sets.newHashSet();
 
     // List of all replacement effect candidates for DamageDone event, in APNAP order
@@ -104,6 +106,9 @@ public class ReplacementHandler {
         game.forEachCardInGame(crd -> {
             Card c = preList.get(crd);
             Zone cardZone = game.getZoneOf(c);
+            if (EXPERIMENT_SKIP_LIBRARY && cardZone != null && cardZone.is(ZoneType.Library)) {
+                return true;
+            }
 
             // all tap/untap/produce mana replacements are active from the battlefield or the
             // command zone (e.g. Ood Sphere); skip other zones - this is a major hot path, as
