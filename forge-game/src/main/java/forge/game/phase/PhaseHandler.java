@@ -93,6 +93,9 @@ public class PhaseHandler implements java.io.Serializable, IHasForgeLog {
 
     /** The need to next phase. */
     private boolean givePriorityToPlayer = false;
+    private static final boolean SKIP_REDUNDANT_STATE_CHECKS = Boolean.getBoolean("forge.game.skipRedundantStateChecks");
+    private transient long stateEventsAtLastCheck = -1;
+    private transient boolean passedSinceStateCheck = false;
 
     private final transient Game game;
 
@@ -1054,10 +1057,15 @@ public class PhaseHandler implements java.io.Serializable, IHasForgeLog {
 
             int loopCount = 0;
             do {
-                if (checkStateBasedEffects()) {
+                // a pass changes nothing, so with no game events since the last check this one would find nothing
+                boolean redundant = SKIP_REDUNDANT_STATE_CHECKS && passedSinceStateCheck
+                        && game.getStateEventCount() == stateEventsAtLastCheck;
+                passedSinceStateCheck = false;
+                if (!redundant && checkStateBasedEffects()) {
                     // state-based effects check could lead to game over
                     return;
                 }
+                stateEventsAtLastCheck = game.getStateEventCount();
                 // CR 117.3 A player receives priority once state-based actions are done, and again after each thing they do
                 game.fireEvent(new GameEventPlayerPriority(PlayerView.get(playerTurn), phase, PlayerView.get(getPriorityPlayer())));
                 game.stashGameState();
@@ -1159,6 +1167,7 @@ public class PhaseHandler implements java.io.Serializable, IHasForgeLog {
             }
         } else {
             pPlayerPriority = nextPlayer;
+            passedSinceStateCheck = true;
         }
 
         // If ever the karn's ultimate resolved
@@ -1190,7 +1199,7 @@ public class PhaseHandler implements java.io.Serializable, IHasForgeLog {
         }
 
         if (!allAffectedCards.isEmpty()) {
-            game.fireEvent(new GameEventCardStatsChanged(allAffectedCards));
+            game.fireDerivedEvent(new GameEventCardStatsChanged(allAffectedCards));
             // Update flashback views after static abilities have been recalculated,
             // so play-from-zone abilities (e.g. Bolas's Citadel) are reflected
             game.getPlayers().forEach(Player::updateFlashbackForView);
