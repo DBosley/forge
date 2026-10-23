@@ -3,6 +3,7 @@ package forge.goldfish;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -16,11 +17,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import com.google.gson.Gson;
@@ -39,6 +43,7 @@ import forge.game.Match;
 import forge.game.phase.PhaseType;
 import forge.game.player.Player;
 import forge.game.player.RegisteredPlayer;
+import forge.game.trigger.Trigger;
 import forge.goldfish.policy.Policy;
 import forge.gui.GuiBase;
 import forge.localinstance.properties.ForgeConstants;
@@ -93,18 +98,15 @@ public final class Runner {
 
         GameRules rules = new GameRules(GameType.Commander);
         rules.setAppliedVariants(EnumSet.of(GameType.Commander));
-        List<RegisteredPlayer> players = new ArrayList<>();
-        RegisteredPlayer me = RegisteredPlayer.forCommander(ours);
+        if (passive && opts.getOrDefault("fast", "on").equals("on")) {
+            rules.setGoldfish(true);
+        }
         String stopsOpt = opts.getOrDefault("opponent-stops", policy != null && policy.opponentTurnStops() != null ? policy.opponentTurnStops() : "all");
-        DeckLobbyPlayer deckPlayer = new DeckLobbyPlayer(DECK_PLAYER, parseStops(stopsOpt), policy);
-        deckPlayer.setAiProfile("Default");
-        me.setPlayer(deckPlayer);
-        players.add(me);
-        for (int i = 1; i <= 3; i++) {
-            RegisteredPlayer opponent = RegisteredPlayer.forCommander(fish);
-            LobbyPlayer lobby = passive ? new PassiveLobbyPlayer("Goldfish " + i) : GamePlayerUtil.createAiPlayer("Goldfish " + i, i);
-            opponent.setPlayer(lobby);
-            players.add(opponent);
+        Set<PhaseType> stops = parseStops(stopsOpt);
+        int threads = Integer.parseInt(opts.getOrDefault("threads", "1"));
+        if (threads > 1) {
+            // a card first named mid-game would load while other games read the card database
+            FModel.getMagicDb().ensureAllCardsLoaded();
         }
 
         for (int i = Integer.getInteger("goldfish.hashBurn", 0); i > 0; i--) {
@@ -123,20 +125,67 @@ public final class Runner {
                 System.err.println("seed " + row.get("seed") + " did not stop after its timeout; exiting");
                 Runtime.getRuntime().halt(3);
             };
-            for (int g = 0; g < games; g++) {
-                out.println(gson.toJson(play(rules, players, seed + g, g, horizon, timeoutSeconds, watchdog, hung, policy,
-                        skipOpponentTurns, libraryOrders.get(seed + g))));
-                out.flush();
+            if (threads <= 1) {
+                List<RegisteredPlayer> players = buildPlayers(ours, fish, stops, policy, passive);
+                for (int g = 0; g < games; g++) {
+                    out.println(gson.toJson(play(rules, players, seed + g, g, horizon, timeoutSeconds, watchdog, hung, policy,
+                            skipOpponentTurns, libraryOrders.get(seed + g), false)));
+                    out.flush();
+                }
+            } else {
+                ThreadLocal<List<RegisteredPlayer>> players = ThreadLocal.withInitial(() -> buildPlayers(ours, fish, stops, policy, passive));
+                AtomicInteger counter = new AtomicInteger();
+                ExecutorService pool = Executors.newFixedThreadPool(threads, r -> new Thread(() -> {
+                    Trigger.useThreadIds();
+                    r.run();
+                }, "goldfish-" + counter.incrementAndGet()));
+                List<Future<?>> done = new ArrayList<>();
+                for (int g = 0; g < games; g++) {
+                    final int index = g;
+                    done.add(pool.submit(() -> {
+                        String line = gson.toJson(play(rules, players.get(), seed + index, index, horizon, timeoutSeconds, watchdog, hung,
+                                policy, skipOpponentTurns, libraryOrders.get(seed + index), true));
+                        synchronized (out) {
+                            out.println(line);
+                            out.flush();
+                        }
+                        return null;
+                    }));
+                }
+                for (Future<?> f : done) {
+                    f.get();
+                }
+                pool.shutdown();
             }
         }
         System.exit(0);
     }
 
+    private static List<RegisteredPlayer> buildPlayers(Deck ours, Deck fish, Set<PhaseType> stops, Policy policy, boolean passive) {
+        List<RegisteredPlayer> players = new ArrayList<>();
+        RegisteredPlayer me = RegisteredPlayer.forCommander(ours);
+        DeckLobbyPlayer deckPlayer = new DeckLobbyPlayer(DECK_PLAYER, stops, policy);
+        deckPlayer.setAiProfile("Default");
+        me.setPlayer(deckPlayer);
+        players.add(me);
+        for (int i = 1; i <= 3; i++) {
+            RegisteredPlayer opponent = RegisteredPlayer.forCommander(fish);
+            LobbyPlayer lobby = passive ? new PassiveLobbyPlayer("Goldfish " + i) : GamePlayerUtil.createAiPlayer("Goldfish " + i, i);
+            opponent.setPlayer(lobby);
+            players.add(opponent);
+        }
+        return players;
+    }
+
     private static Map<String, Object> play(GameRules rules, List<RegisteredPlayer> players, long seed, int index,
                                             int horizon, int timeoutSeconds, ScheduledExecutorService watchdog,
                                             Consumer<Map<String, Object>> hung, Policy policy,
-                                            boolean skipOpponentTurns, List<String> libraryOrder) throws Exception {
-        MyRandom.setRandom(new Random(seed));
+                                            boolean skipOpponentTurns, List<String> libraryOrder, boolean threaded) throws Exception {
+        if (threaded) {
+            MyRandom.setThreadRandom(new Random(seed));
+        } else {
+            MyRandom.setRandom(new Random(seed));
+        }
         Match match = new Match(rules, players, "Goldfish");
         Game game = match.createGame();
         game.AI_TIMEOUT = Integer.getInteger("goldfish.aiTimeout", 3600);
@@ -148,12 +197,13 @@ public final class Runner {
         if (skipOpponentTurns) {
             game.getPhaseHandler().setTurnSkipper(p -> p != me);
         }
-        Recorder recorder = new Recorder(game, me, horizon);
+        Recorder recorder = new Recorder(game, me, horizon, threaded);
         game.subscribeToEvents(recorder);
 
         AtomicBoolean timedOut = new AtomicBoolean();
         AtomicBoolean finished = new AtomicBoolean();
         long start = System.nanoTime();
+        long cpuStart = ManagementFactory.getThreadMXBean().getCurrentThreadCpuTime();
         ScheduledFuture<?> stop = watchdog.schedule(() -> {
             timedOut.set(true);
             game.setGameOver(GameEndReason.Draw);
@@ -179,6 +229,7 @@ public final class Runner {
         stop.cancel(false);
         kill.cancel(false);
         long ms = (System.nanoTime() - start) / 1_000_000;
+        long cpuMs = (ManagementFactory.getThreadMXBean().getCurrentThreadCpuTime() - cpuStart) / 1_000_000;
 
         List<Player> opponents = game.getRegisteredPlayers().stream().filter(p -> p != me).toList();
         boolean tableDead = opponents.stream().allMatch(Player::hasLost);
@@ -192,6 +243,7 @@ public final class Runner {
         row.put("game", index);
         row.put("seed", seed);
         row.put("ms", ms);
+        row.put("cpu_ms", cpuMs);
         row.put("status", status);
         row.put("turns", recorder.turns());
         row.put("our_turns", recorder.ourTurns());
