@@ -641,17 +641,26 @@ public class Game {
 
     public CardCollectionView getCardsIn(final Iterable<ZoneType> zones) {
         CardCollection cards = new CardCollection();
+        // no card is in two zones, so a set of zones can be joined without checking for duplicates
+        final boolean distinct = rules.isGoldfish() && zones instanceof EnumSet<ZoneType> set && !set.contains(ZoneType.Flashback);
         for (final ZoneType z : zones) {
             if (z == ZoneType.Stack) {
-                cards.addAll(getStackZone().getCards());
+                addCards(cards, getStackZone().getCards(), distinct);
                 continue;
             }
             // adding each player's zone to the result directly avoids building a collection per zone
             for (final Player p : getPlayers()) {
-                cards.addAll(p.getCardsIn(z));
+                addCards(cards, p.getCardsIn(z), distinct);
             }
         }
         return cards;
+    }
+    private static void addCards(final CardCollection cards, final CardCollectionView zoneCards, final boolean distinct) {
+        if (distinct) {
+            cards.addAllDistinct(zoneCards);
+        } else {
+            cards.addAll(zoneCards);
+        }
     }
 
     public CardCollectionView getCardsInOwnedBy(final Iterable<ZoneType> zones, Player p) {

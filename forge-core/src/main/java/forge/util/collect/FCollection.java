@@ -326,6 +326,19 @@ public class FCollection<T> implements List<T>, /*Set<T>,*/ FCollectionView<T>, 
     }
 
     /**
+     * Add all the elements of a collection that holds no duplicates and
+     * shares no element with this one, without checking each of them.
+     *
+     * @param c a collection with no element in common with this one.
+     */
+    public void addAllDistinct(final Collection<? extends T> c) {
+        if (set != null) {
+            set.addAll(c);
+        }
+        list.addAll(c);
+    }
+
+    /**
      * Add all the elements in the specified {@link Iterator} to this
      * collection, in the order in which they appear.
      *
