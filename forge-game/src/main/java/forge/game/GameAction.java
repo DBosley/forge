@@ -76,6 +76,11 @@ import java.util.function.Predicate;
  */
 public class GameAction {
     private final Game game;
+    private long staticsVersion;
+
+    public long getStaticsVersion() {
+        return staticsVersion;
+    }
 
     private boolean holdCheckingStaticAbilities = false;
 
@@ -1109,6 +1114,7 @@ public class GameAction {
         if (game.isGameOver()) {
             return;
         }
+        staticsVersion++;
         game.getTracker().freeze(); //prevent views flickering during while updating for state-based effects
 
         final Map<StaticAbilityLayer, Set<Card>> affectedPerLayer = Maps.newHashMap();
@@ -1296,6 +1302,7 @@ public class GameAction {
         if (runEvents && !affectedCards.isEmpty()) {
             game.fireDerivedEvent(new GameEventCardStatsChanged(affectedCards));
         }
+        staticsVersion++;
         game.getTracker().unfreeze();
     }
 
