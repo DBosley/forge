@@ -201,35 +201,39 @@ public class AiAttackController {
 
         Map<Player, Integer> threatScores = Maps.newHashMap();
         for (Player opp : opponents) {
-            final int life = opp.getLife();
-            int score = ComputerUtil.evaluateBoardPosition(ai, opp);
-            int lowLifeThreshold = Math.min(20, opp.getStartingLife());
-            if (life > 0 && life < lowLifeThreshold) {
-                // TODO commander damage
-                int lifeDeficit = lowLifeThreshold - life;
-                score += lifeDeficit * lifeDeficit;
-            }
-            if (forCombatDmg) {
-                if (opp.isMonarch() && ai.canBecomeMonarch()) {
-                    score += 80;
-                }
-                if (opp.hasInitiative()) {
-                    score += 80;
-                }
-                if (!opp.canLoseLife()) {
-                    score -= 100;
-                }
-                if (opp.cantLoseForZeroOrLessLife()) {
-                    score -= 50;
-                }
-            }
-            threatScores.put(opp, score);
+            threatScores.put(opp, threatScore(ai, opp, forCombatDmg));
         }
         // round away slightly so a single land drop doesn't mean players with earlier turn order are predictably attacked
         // grows with game age since by then threat ranges become less narrow
         int threatLimit = Collections.max(threatScores.values()) - 10 - ai.getGame().getPhaseHandler().getTurn();
         threatScores.values().removeIf(e -> e < threatLimit);
         return Aggregates.random(threatScores.keySet());
+    }
+
+    public static int threatScore(Player ai, Player opp, boolean forCombatDmg) {
+        final int life = opp.getLife();
+        int score = ComputerUtil.evaluateBoardPosition(ai, opp);
+        int lowLifeThreshold = Math.min(20, opp.getStartingLife());
+        if (life > 0 && life < lowLifeThreshold) {
+            // TODO commander damage
+            int lifeDeficit = lowLifeThreshold - life;
+            score += lifeDeficit * lifeDeficit;
+        }
+        if (forCombatDmg) {
+            if (opp.isMonarch() && ai.canBecomeMonarch()) {
+                score += 80;
+            }
+            if (opp.hasInitiative()) {
+                score += 80;
+            }
+            if (!opp.canLoseLife()) {
+                score -= 100;
+            }
+            if (opp.cantLoseForZeroOrLessLife()) {
+                score -= 50;
+            }
+        }
+        return score;
     }
 
     public static List<Card> sortAttackers(final List<Card> in) {
