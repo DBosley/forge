@@ -52,7 +52,6 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -892,16 +891,8 @@ public class AiAttackController {
             // nextTurn is now only used by effect from Oracle en-Vec, which can skip check must attack,
             // because creatures not chosen can't attack.
             if (!nextTurn) {
-                ExecutorService executor = Executors.newFixedThreadPool(
-                    Runtime.getRuntime().availableProcessors(), r -> {
-                        Thread t = Executors.defaultThreadFactory().newThread(r);
-                        t.setDaemon(true);
-                        return t;
-                    }
-                );
                 List<Callable<Integer>> tasks = new ArrayList<>();
                 final long deadline = AITimeoutTracker.deadlineNanos(id, timeoutNanos);
-                final AtomicBoolean combatClosed = new AtomicBoolean(false);
 
                 for (final Card attacker : this.attackers) {
                     final GameEntity finalDefender = defender;
@@ -953,31 +944,20 @@ public class AiAttackController {
                             }
                         }
                         if (mustAttackDef != null) {
-                            // combat is shared across these parallel futures and its attacker
-                            // multimap is not thread-safe; unsynchronized addAttacker calls
-                            // collide (ConcurrentModificationException, dropped attackers)
-                            synchronized (combat) {
-                                if (combatClosed.get()) {
-                                    return 0; // timed out: the caller already moved on, never touch combat after that
-                                }
-                                combat.addAttacker(attacker, mustAttackDef);
-                                attackersLeft.remove(attacker);
-                                numForcedAttackers.incrementAndGet();
-                            }
+                            combat.addAttacker(attacker, mustAttackDef);
+                            attackersLeft.remove(attacker);
+                            numForcedAttackers.incrementAndGet();
                         }
                         return 0;
                     }));
                 }
 
-                try {
-                    executor.invokeAll(tasks, Math.max(1L, AITimeoutTracker.remainingNanos(id, timeoutNanos)), TimeUnit.NANOSECONDS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    synchronized (combat) {
-                        combatClosed.set(true); // late workers must not add attackers after we move on
+                for (Callable<Integer> task : tasks) {
+                    try {
+                        task.call();
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
-                    executor.shutdownNow();
                 }
 
                 if (attackersLeft.isEmpty()) {
