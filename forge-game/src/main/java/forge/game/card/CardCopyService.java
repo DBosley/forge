@@ -289,7 +289,11 @@ public class CardCopyService {
             newCopy.setType(new CardType(copyFrom.getFaceDownState().getType()));
         }
         // prevent StackDescription from revealing face
-        newCopy.updateStateForView();
+        // a goldfish game skips it for plain face-up copies, their view already shows the original state
+        if (newCopy.getGame() == null || !newCopy.getGame().getRules().isGoldfish()
+                || newCopy.getCurrentStateName() != CardStateName.Original || newCopy.isFaceDown()) {
+            newCopy.updateStateForView();
+        }
         copyAbilityText(copyFrom.getView(), newCopy.getView());
 
         /*

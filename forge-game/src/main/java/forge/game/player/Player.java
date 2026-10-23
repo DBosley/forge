@@ -1031,7 +1031,9 @@ public class Player extends GameEntity implements Comparable<Player> {
 
         // see if keyword changes are in effect
         keywords.applyChanges(changedKeywords.values());
-        view.updateKeywords(this);
+        if (!game.getRules().isGoldfish()) {
+            view.updateKeywords(this);
+        }
         updateKeywordCardAbilityText();
     }
 
