@@ -170,6 +170,7 @@ public final class Runner {
             error = e.toString();
         }
         finished.set(true);
+        recorder.finish();
         stop.cancel(false);
         kill.cancel(false);
         long ms = (System.nanoTime() - start) / 1_000_000;
@@ -192,6 +193,7 @@ public final class Runner {
         row.put("table_dead_round", tableDead ? recorder.ourTurns() : null);
         row.put("opponents_life", opponents.stream().map(Player::getLife).toList());
         row.put("plays", recorder.plays());
+        row.putAll(recorder.contract());
         if (Boolean.getBoolean("goldfish.rounds")) {
             row.put("rounds", recorder.rounds());
         }
@@ -200,6 +202,7 @@ public final class Runner {
         if (logDir != null) {
             List<GameLogEntry> entries = new ArrayList<>(game.getGameLog().getLogEntries(null));
             java.util.Collections.reverse(entries);
+            java.nio.file.Files.createDirectories(java.nio.file.Path.of(logDir));
             java.nio.file.Files.write(java.nio.file.Path.of(logDir, seed + ".log"),
                     entries.stream().map(e -> e.type() + "|" + e.message()).toList(), StandardCharsets.UTF_8);
         }
