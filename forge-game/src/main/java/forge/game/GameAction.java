@@ -76,6 +76,8 @@ import java.util.function.Predicate;
  */
 public class GameAction {
     private final Game game;
+    private static final boolean SKIP_UNCHANGED_STATICS = Boolean.getBoolean("forge.game.skipUnchangedStatics");
+    private long stateEventsAtLastRebuild = -1;
 
     private boolean holdCheckingStaticAbilities = false;
 
@@ -1080,6 +1082,11 @@ public class GameAction {
         if (game.isGameOver()) {
             return;
         }
+        if (!preList.isEmpty()) {
+            stateEventsAtLastRebuild = -1;
+        } else if (SKIP_UNCHANGED_STATICS && game.getStateEventCount() == stateEventsAtLastRebuild) {
+            return;
+        }
         game.getTracker().freeze(); //prevent views flickering during while updating for state-based effects
 
         final Map<StaticAbilityLayer, Set<Card>> affectedPerLayer = Maps.newHashMap();
@@ -1265,7 +1272,10 @@ public class GameAction {
         // TODO filter out old copies from zone change
 
         if (runEvents && !affectedCards.isEmpty()) {
-            game.fireEvent(new GameEventCardStatsChanged(affectedCards));
+            game.fireDerivedEvent(new GameEventCardStatsChanged(affectedCards));
+        }
+        if (preList.isEmpty()) {
+            stateEventsAtLastRebuild = game.getStateEventCount();
         }
         game.getTracker().unfreeze();
     }
@@ -1620,7 +1630,7 @@ public class GameAction {
         game.getTracker().unfreeze();
 
         if (runEvents && !affectedCards.isEmpty()) {
-            game.fireEvent(new GameEventCardStatsChanged(affectedCards));
+            game.fireDerivedEvent(new GameEventCardStatsChanged(affectedCards));
         }
 
         // recheck the game over condition at this point to make sure no other win conditions apply now.

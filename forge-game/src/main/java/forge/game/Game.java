@@ -1035,6 +1035,9 @@ public class Game {
         }
         events.post(event);
     }
+    public void fireDerivedEvent(final Event event) {
+        events.post(event);
+    }
     public long getStateEventCount() {
         return stateEventCount;
     }
