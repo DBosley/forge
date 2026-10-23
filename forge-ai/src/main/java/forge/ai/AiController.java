@@ -1775,6 +1775,17 @@ public class AiController {
                 AITimeoutTracker.disarm(evalLimit); // matters as soon as this runs on a pooled thread
             }
         });
+        if (AiRuntime.INLINE_EVALUATION) {
+            try {
+                future.run();
+                return future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                return null;
+            } finally {
+                AITimeoutTracker.end(aiId);
+            }
+        }
         Thread t = new Thread(future, "Game AI Eval");
         t.setDaemon(true);
         t.start();
