@@ -33,6 +33,7 @@ import forge.game.card.*;
 import forge.game.combat.Combat;
 import forge.game.event.Event;
 import forge.game.event.GameEventDayTimeChanged;
+import forge.game.event.GameEventPlayerPriority;
 import forge.game.event.GameEventAddLog;
 import forge.game.event.GameEventGameOutcome;
 import forge.game.phase.Phase;
@@ -96,6 +97,7 @@ public class Game {
     private final TriggerHandler triggerHandler = new TriggerHandler(this);
     private final ReplacementHandler replacementHandler = new ReplacementHandler(this);
     private final EventBus events = new EventBus("game events");
+    private long stateEventCount;
     private final GameLog gameLog = new GameLog();
 
     private final Zone stackZone = new Zone(ZoneType.Stack, this);
@@ -1034,7 +1036,20 @@ public class Game {
      * The events are sent to UI, log and sound system. Network listeners are under development.
      */
     public void fireEvent(final Event event) {
+        if (!(event instanceof GameEventPlayerPriority)) {
+            stateEventCount++;
+        }
         events.post(event);
+    }
+    public void fireDerivedEvent(final Event event) {
+        events.post(event);
+    }
+
+    public void noteStateChange() {
+        stateEventCount++;
+    }
+    public long getStateEventCount() {
+        return stateEventCount;
     }
     public void subscribeToEvents(final Object subscriber) {
         events.register(subscriber);

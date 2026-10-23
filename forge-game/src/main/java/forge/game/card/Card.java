@@ -4636,6 +4636,9 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
         stickers.add(s);
         s.applyEffect(this);
         updateStickersForView();
+        if (getGame() != null) {
+            getGame().noteStateChange();
+        }
     }
     // CR 123.5
     public final void setStickers(final Card oldCard) {

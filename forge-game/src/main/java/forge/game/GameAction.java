@@ -1294,7 +1294,7 @@ public class GameAction {
         // TODO filter out old copies from zone change
 
         if (runEvents && !affectedCards.isEmpty()) {
-            game.fireEvent(new GameEventCardStatsChanged(affectedCards));
+            game.fireDerivedEvent(new GameEventCardStatsChanged(affectedCards));
         }
         game.getTracker().unfreeze();
     }
@@ -1649,7 +1649,7 @@ public class GameAction {
         game.getTracker().unfreeze();
 
         if (runEvents && !affectedCards.isEmpty()) {
-            game.fireEvent(new GameEventCardStatsChanged(affectedCards));
+            game.fireDerivedEvent(new GameEventCardStatsChanged(affectedCards));
         }
 
         // recheck the game over condition at this point to make sure no other win conditions apply now.
