@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -47,6 +48,7 @@ import forge.util.MyRandom;
 public final class Runner {
     private static final String DECK_PLAYER = "Deck";
 
+    @SuppressWarnings("unchecked")
     public static void main(String[] args) throws Exception {
         Map<String, String> opts = parse(args);
         String deckPath = required(opts, "deck");
@@ -57,6 +59,14 @@ public final class Runner {
         int timeoutSeconds = Integer.parseInt(opts.getOrDefault("timeout", "120"));
         boolean passive = opts.getOrDefault("opponents", "passive").equals("passive");
         boolean skipOpponentTurns = opts.getOrDefault("opponent-turns", "play").equals("skip");
+        Map<Long, List<String>> libraryOrders = new HashMap<>();
+        if (opts.containsKey("library-file")) {
+            List<Map<String, Object>> entries = new Gson().fromJson(java.nio.file.Files.readString(Path.of(opts.get("library-file"))),
+                    new com.google.gson.reflect.TypeToken<List<Map<String, Object>>>() { }.getType());
+            for (Map<String, Object> e : entries) {
+                libraryOrders.put(((Number) e.get("seed")).longValue(), (List<String>) e.get("order"));
+            }
+        }
         String outPath = required(opts, "out");
 
         System.setProperty("java.awt.headless", "true");
@@ -111,7 +121,7 @@ public final class Runner {
             };
             for (int g = 0; g < games; g++) {
                 out.println(gson.toJson(play(rules, players, seed + g, g, horizon, timeoutSeconds, watchdog, hung, policy,
-                        skipOpponentTurns)));
+                        skipOpponentTurns, libraryOrders.get(seed + g))));
                 out.flush();
             }
         }
@@ -121,12 +131,15 @@ public final class Runner {
     private static Map<String, Object> play(GameRules rules, List<RegisteredPlayer> players, long seed, int index,
                                             int horizon, int timeoutSeconds, ScheduledExecutorService watchdog,
                                             Consumer<Map<String, Object>> hung, Policy policy,
-                                            boolean skipOpponentTurns) throws Exception {
+                                            boolean skipOpponentTurns, List<String> libraryOrder) throws Exception {
         MyRandom.setRandom(new Random(seed));
         Match match = new Match(rules, players, "Goldfish");
         Game game = match.createGame();
         game.setNoGUIUser();
         Player me = game.getPlayers().stream().filter(p -> p.getName().equals(DECK_PLAYER)).findFirst().orElseThrow();
+        if (libraryOrder != null) {
+            ((DeckController) me.getController()).setLibraryOrder(libraryOrder, true);
+        }
         if (skipOpponentTurns) {
             game.getPhaseHandler().setTurnSkipper(p -> p != me);
         }

@@ -10,6 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import forge.ai.ComputerUtilMana;
+import forge.game.phase.PhaseType;
 import forge.game.player.Player;
 import forge.game.zone.ZoneType;
 
@@ -33,6 +34,12 @@ final class Condition implements Predicate<Player> {
         }
         List<Predicate<Player>> terms = new ArrayList<>();
         for (String part : text.split("\\s+and\\s+")) {
+            String word = part.trim();
+            if (word.equals("main1") || word.equals("main2")) {
+                PhaseType phase = word.equals("main1") ? PhaseType.MAIN1 : PhaseType.MAIN2;
+                terms.add(p -> p.getGame().getPhaseHandler().is(phase));
+                continue;
+            }
             Matcher m = TERM.matcher(part);
             if (!m.matches()) {
                 throw new IllegalArgumentException("can't read condition \"" + part + "\" in \"" + text + "\"");
@@ -50,7 +57,7 @@ final class Condition implements Predicate<Player> {
                 value = switch (m.group(5)) {
                     case "sources" -> p -> (int) p.getCardsIn(ZoneType.Battlefield).stream()
                             .filter(c -> !c.getManaAbilities().isEmpty()).count();
-                    case "mana" -> p -> ComputerUtilMana.getAvailableManaEstimate(p, false);
+                    case "mana" -> p -> ComputerUtilMana.getAvailableManaEstimate(p, true);
                     case "round" -> Player::getTurn;
                     default -> Player::getLife;
                 };
