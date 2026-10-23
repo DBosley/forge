@@ -54,6 +54,10 @@ public class ReplacementHandler {
     private final Game game;
 
     private static final boolean EXPERIMENT_SKIP_LIBRARY = Boolean.getBoolean("forge.experiment.skipLibraryReplacements");
+    private static final boolean MEMO_CANDIDATES = Boolean.getBoolean("forge.game.memoReplacementCandidates");
+    private List<Card> candidateMemo = new ArrayList<>();
+    private long memoEvents = -1;
+    private long memoStatics = -1;
 
     private Set<ReplacementEffect> hasRun = Sets.newHashSet();
 
@@ -103,7 +107,7 @@ public class ReplacementHandler {
         final List<ReplacementEffect> possibleReplacers = Lists.newArrayList();
 
         // Round up Static replacement effects
-        game.forEachCardInGame(crd -> {
+        final Visitor<Card> visitor = crd -> {
             Card c = preList.get(crd);
             Zone cardZone = game.getZoneOf(c);
             if (EXPERIMENT_SKIP_LIBRARY && cardZone != null && cardZone.is(ZoneType.Library)) {
@@ -153,7 +157,18 @@ public class ReplacementHandler {
                 }
             }
             return true;
-        }, affectedCard != null && affectedCard.isInZone(ZoneType.Sideboard));
+        };
+        final boolean withSideboard = affectedCard != null && affectedCard.isInZone(ZoneType.Sideboard);
+        if (MEMO_CANDIDATES && preList.isEmpty() && !withSideboard
+                && (event != ReplacementType.Moved || runParams.get(AbilityKey.LastStateBattlefield) == null)) {
+            for (Card crd : replacementCandidates()) {
+                if (!visitor.visit(crd)) {
+                    break;
+                }
+            }
+        } else {
+            game.forEachCardInGame(visitor, withSideboard);
+        }
 
         if (affectedLKI != null) {
             // need to set the Host Card there so it is not connected to LKI anymore?
@@ -175,6 +190,25 @@ public class ReplacementHandler {
         }
 
         return possibleReplacers;
+    }
+
+    // cards in game order that have any replacement effect, valid until a game event fires or statics are reapplied
+    private List<Card> replacementCandidates() {
+        long events = game.getStateEventCount();
+        long statics = game.getAction().getStaticsVersion();
+        if (events != memoEvents || statics != memoStatics) {
+            List<Card> candidates = new ArrayList<>();
+            game.forEachCardInGame(c -> {
+                if (!c.getReplacementEffects().isEmpty()) {
+                    candidates.add(c);
+                }
+                return true;
+            }, false);
+            candidateMemo = candidates;
+            memoEvents = events;
+            memoStatics = statics;
+        }
+        return candidateMemo;
     }
 
     public boolean cantHappenCheck(final ReplacementType event, final Map<AbilityKey, Object> runParams) {
