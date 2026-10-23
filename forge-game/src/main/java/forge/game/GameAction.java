@@ -82,6 +82,12 @@ public class GameAction {
         return staticsVersion;
     }
 
+    private static final boolean MEMO_ALT_COST_SOURCES = Boolean.getBoolean("forge.game.memoAltCostSources");
+    private long altCostMemoEvents = -1;
+    private long altCostMemoStatics = -1;
+    private CardCollection altCostSources;
+    private CardCollection stackAbilitySources;
+
     private boolean holdCheckingStaticAbilities = false;
 
     private final static Comparator<StaticAbility> effectOrder = Comparator.comparing(StaticAbility::isCharacteristicDefining).reversed()
@@ -1072,6 +1078,48 @@ public class GameAction {
 
     private boolean isCheckingStaticAbilitiesOnHold() {
         return holdCheckingStaticAbilities;
+    }
+
+    // static sources that have an alternative cost static, valid until a game event fires or statics are reapplied
+    public CardCollectionView getAlternativeCostSources(final CardCollectionView staticSources) {
+        if (!MEMO_ALT_COST_SOURCES) {
+            return staticSources;
+        }
+        updateAltCostMemo();
+        return altCostSources;
+    }
+
+    // static sources that have a continuous static changing abilities on the stack, same lifetime
+    public CardCollectionView getStackAbilitySources(final CardCollectionView staticSources) {
+        if (!MEMO_ALT_COST_SOURCES) {
+            return staticSources;
+        }
+        updateAltCostMemo();
+        return stackAbilitySources;
+    }
+
+    private void updateAltCostMemo() {
+        final long events = game.getStateEventCount();
+        if (events == altCostMemoEvents && staticsVersion == altCostMemoStatics) {
+            return;
+        }
+        final CardCollection alt = new CardCollection();
+        final CardCollection stack = new CardCollection();
+        for (final Card c : game.getCardsIn(ZoneType.STATIC_ABILITIES_SOURCE_ZONES)) {
+            for (final StaticAbility stAb : c.getStaticAbilities()) {
+                if (stAb.checkMode(StaticAbilityMode.AlternativeCost)) {
+                    alt.add(c);
+                }
+                if (stAb.checkMode(StaticAbilityMode.Continuous) && stAb.getLayers().contains(StaticAbilityLayer.ABILITIES)
+                        && ZoneType.listValueOf(stAb.getParamOrDefault("AffectedZone", ZoneType.Battlefield.toString())).contains(ZoneType.Stack)) {
+                    stack.add(c);
+                }
+            }
+        }
+        altCostSources = alt;
+        stackAbilitySources = stack;
+        altCostMemoEvents = events;
+        altCostMemoStatics = staticsVersion;
     }
 
     // This doesn't check layers or if the ability gets removed by other effects
