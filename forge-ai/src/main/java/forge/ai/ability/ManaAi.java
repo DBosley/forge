@@ -151,7 +151,8 @@ public class ManaAi extends SpellAbilityAi {
             numManaSrcs--;
         }
         int manaReceived = sa.hasParam("Amount") ? AbilityUtils.calculateAmount(host, sa.getParam("Amount"), sa) : 1;
-        manaReceived *= sa.getParam("Produced").split(" ").length;
+        String producedParam = sa.getParam("Produced");
+        manaReceived *= producedParam.startsWith("Combo") ? 1 : producedParam.split(" ").length;
 
         int selfCost = sa.getRootAbility().getPayCosts().getCostMana() != null ? sa.getRootAbility().getPayCosts().getCostMana().getMana().getCMC() : 0;
 
