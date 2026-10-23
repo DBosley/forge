@@ -18,6 +18,7 @@ WARMUP = 3
 INLINE = "-Dforge.ai.inlineEvaluation=true"
 SEQUENTIAL = "-Dforge.ai.sequentialAttacks=true"
 SKIP_LIBRARY = "-Dforge.experiment.skipLibraryReplacements=true"
+SKIP_STATE = "-Dforge.game.skipRedundantStateChecks=true"
 
 VARIANTS = {
     "stock": ("eager", [], {"opponents": "ai", "horizon": "0"}),
@@ -31,6 +32,8 @@ VARIANTS = {
     "det": ("eager", [INLINE, SEQUENTIAL], {"opponents": "ai", "horizon": "10"}),
     "detperf": ("perf", [INLINE, SEQUENTIAL], {"opponents": "ai", "horizon": "10"}),
     "skip": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_LIBRARY], {"opponents": "passive", "horizon": "10"}),
+    "allstate": ("lazyperf", [INLINE, SEQUENTIAL, SKIP_STATE], {"opponents": "passive", "horizon": "10"}),
+    "detstate": ("eager", [INLINE, SEQUENTIAL, SKIP_STATE], {"opponents": "ai", "horizon": "10"}),
 }
 
 
