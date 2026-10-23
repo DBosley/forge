@@ -78,6 +78,11 @@ public class GameAction {
     private final Game game;
     private static final boolean SKIP_UNCHANGED_STATICS = Boolean.getBoolean("forge.game.skipUnchangedStatics");
     private long stateEventsAtLastRebuild = -1;
+    private long staticsVersion;
+
+    public long getStaticsVersion() {
+        return staticsVersion;
+    }
 
     private boolean holdCheckingStaticAbilities = false;
 
@@ -1087,6 +1092,7 @@ public class GameAction {
         } else if (SKIP_UNCHANGED_STATICS && game.getStateEventCount() == stateEventsAtLastRebuild) {
             return;
         }
+        staticsVersion++;
         game.getTracker().freeze(); //prevent views flickering during while updating for state-based effects
 
         final Map<StaticAbilityLayer, Set<Card>> affectedPerLayer = Maps.newHashMap();
@@ -1277,6 +1283,7 @@ public class GameAction {
         if (preList.isEmpty()) {
             stateEventsAtLastRebuild = game.getStateEventCount();
         }
+        staticsVersion++;
         game.getTracker().unfreeze();
     }
 
