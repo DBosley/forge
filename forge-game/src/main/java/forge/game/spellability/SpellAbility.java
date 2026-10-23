@@ -18,6 +18,7 @@
 package forge.game.spellability;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.collect.*;
 
@@ -75,8 +76,8 @@ import forge.game.zone.ZoneType;
  * @version $Id$
  */
 public abstract class SpellAbility extends CardTraitBase implements ISpellAbility, IIdentifiable, Comparable<SpellAbility> {
-    private static int maxId = 0;
-    private static int nextId() { return ++maxId; }
+    private static final AtomicInteger maxId = new AtomicInteger();
+    private static int nextId() { return maxId.incrementAndGet(); }
 
     public static class EmptySa extends SpellAbility {
         public EmptySa(Card sourceCard) { super(sourceCard, Cost.Zero); setActivatingPlayer(sourceCard.getController());}

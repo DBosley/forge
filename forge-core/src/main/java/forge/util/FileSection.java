@@ -19,6 +19,7 @@ package forge.util;
 
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
+import com.google.common.collect.Tables;
 import org.apache.commons.lang3.StringUtils;
 
 import java.text.NumberFormat;
@@ -48,7 +49,7 @@ public class FileSection {
     public static final Pattern COLON_KV_SEPARATOR = Pattern.compile(Pattern.quote(":"));
     private static final String BAR_PAIR_SPLITTER = Pattern.quote("|");
 
-    private static final Table<String, Pattern, Map<String, String>> parseToMapCache = HashBasedTable.create();
+    private static final Table<String, Pattern, Map<String, String>> parseToMapCache = Tables.synchronizedTable(HashBasedTable.create());
 
     /**
      * Parses the key=value text line and return a HashMap

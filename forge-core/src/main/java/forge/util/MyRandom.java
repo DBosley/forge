@@ -49,6 +49,8 @@ public class MyRandom {
     }
     /** Number of random draws made so far. Used by undo to detect that randomness was consumed. */
     public static long callCount() { return calls.get(); }
+    // set by a runner that plays several seeded games on parallel threads in one jvm
+    private static final ThreadLocal<Random> threadRandom = new ThreadLocal<>();
 
     public static boolean percentTrue(final int percent) {
         return percent > MyRandom.getRandom().nextInt(100);
@@ -60,7 +62,8 @@ public class MyRandom {
      * @return the random
      */
     public static Random getRandom() {
-        return MyRandom.random;
+        Random local = threadRandom.get();
+        return local != null ? local : MyRandom.random;
     }
 
     /**
@@ -71,11 +74,15 @@ public class MyRandom {
         MyRandom.random = random instanceof CountingRandom ? random : new CountingRandom(random);
     }
 
+    public static void setThreadRandom(Random random) {
+        threadRandom.set(random == null || random instanceof CountingRandom ? random : new CountingRandom(random));
+    }
+
     public static int[] splitIntoRandomGroups(final int value, final int numGroups) {
         int[] groups = new int[numGroups];
 
         for (int i = 0; i < value; i++) {
-            groups[random.nextInt(numGroups)]++;
+            groups[getRandom().nextInt(numGroups)]++;
         }
 
         return groups;

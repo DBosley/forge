@@ -48,10 +48,6 @@ public class ChangeZoneAi extends SpellAbilityAi {
      * too much: blink/bounce/exile/tutor/Raise Dead/Surgical Extraction/......
      */
 
-    // multipleCardsToChoose is used by Intuition and can be adapted to be used by other
-    // cards where multiple cards are fetched at once and they need to be coordinated
-    private static CardCollection multipleCardsToChoose = new CardCollection();
-
     protected boolean willPayCosts(Player payer, SpellAbility sa, Cost cost, Card source) {
         if (sa.isHidden()) {
             if (!ComputerUtilCost.checkSacrificeCost(payer, cost, source, sa)
@@ -140,7 +136,9 @@ public class ChangeZoneAi extends SpellAbilityAi {
 
     @Override
     protected AiAbilityDecision checkApiLogic(Player aiPlayer, SpellAbility sa) {
-        multipleCardsToChoose.clear();
+        if (aiPlayer.getController() instanceof PlayerControllerAi pc) {
+            pc.getAi().getIntuitionPicks().clear();
+        }
         String aiLogic = sa.getParam("AILogic");
         if (aiLogic != null) {
             if (aiLogic.equals("Always")) {
@@ -160,7 +158,9 @@ public class ChangeZoneAi extends SpellAbilityAi {
             } else if (aiLogic.equals("Intuition")) {
                 // This logic only fills the multiple cards array, the decision to play is made
                 // separately in hiddenOriginCanPlayAI later.
-                multipleCardsToChoose = SpecialCardAi.Intuition.considerMultiple(aiPlayer, sa);
+                if (aiPlayer.getController() instanceof PlayerControllerAi pc) {
+                    pc.getAi().setIntuitionPicks(SpecialCardAi.Intuition.considerMultiple(aiPlayer, sa));
+                }
             } else if (aiLogic.equals("MazesEnd")) {
                 return SpecialCardAi.MazesEnd.consider(aiPlayer, sa);
             } else if (aiLogic.equals("Pongify")) {
@@ -1543,9 +1543,10 @@ public class ChangeZoneAi extends SpellAbilityAi {
             } else if ("MazesEnd".equals(logic)) {
                 return SpecialCardAi.MazesEnd.considerCardToGet(decider, sa);
             } else if ("Intuition".equals(logic)) {
-                if (!multipleCardsToChoose.isEmpty()) {
-                    Card choice = multipleCardsToChoose.get(0);
-                    multipleCardsToChoose.remove(0);
+                if (decider.getController() instanceof PlayerControllerAi pc && !pc.getAi().getIntuitionPicks().isEmpty()) {
+                    CardCollection picks = pc.getAi().getIntuitionPicks();
+                    Card choice = picks.get(0);
+                    picks.remove(0);
                     return choice;
                 }
             } else if (logic.startsWith("ExilePreference")) {
