@@ -34,7 +34,10 @@ Never push, never force anything, never touch another agent's worktree.
 - Standard args: `--deck $PWD/decks/multiverse-reforged.dck --fish $PWD/decks/goldfish-basics.dck --games N --seed S --horizon 10 --opponents passive --opponent-stops upkeep,end_of_turn --policy $PWD/policies/multiverse-reforged.yaml --out <file.jsonl>`
   Goldfish fast mode is on by default with passive opponents (`--fast off` to compare). `--threads N` plays N games at once
   in one JVM (heap sized automatically); 12 is the sweet spot on this machine.
-  Add `-Dgoldfish.logDir=<dir>` for full game logs.
+  Add `-Dgoldfish.logDir=<dir>` for full game logs. `--paired on` for a deck and `--paired "New card=Card it replaces;..."`
+  for a swapped version give both the same shuffles, the new card where the old one would be, so their games differ only
+  where the swap matters (the `goldfish.py swap` screen in mtg-tools). Paired shuffles are a different random stream, so
+  baselines run without it.
 - Each output row has `seed, ms, cpu_ms, status, turns, our_turns, opponents_life, plays, log_hash` plus per-round
   metrics. `cpu_ms` (game thread CPU) is the timing number to trust when the machine is busy. Games are deterministic:
   same jars + seed + flags gives the same `log_hash`. **A change that keeps every `log_hash` identical cannot have
