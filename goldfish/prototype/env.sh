@@ -1,4 +1,4 @@
-FORGE_SRC="${FORGE_SRC:-$HOME/src/forge-v2}"
+FORGE_SRC="${FORGE_SRC:-$(cd "$here/../.." && pwd)}"
 release="$HOME/apps/forge-2.0.15"
 module_jar() {
   ls -t "$FORGE_SRC/forge-$1/target/forge-$1-"*.jar | grep -v -e sources -e javadoc -e with-dependencies | head -1
