@@ -9,7 +9,7 @@ touches Forge itself.
 | Path | What | Rules |
 |---|---|---|
 | `~/src/forge` | main Forge checkout, branch `goldfish` (old, pushed to fork `DBosley/forge`), plus uncommitted old work | read only; never edit, build or switch branch here |
-| `~/src/forge-v2` | worktree, branch `goldfish-v2`: upstream master (9a6f776b848) + 36 commits (`git log upstream-master..goldfish-v2`) | the fork the runner uses by default; integrate here only when told |
+| `~/src/forge-v2` | worktree, branch `goldfish-v2`: upstream master (9a6f776b848) + 35 commits (`git log upstream-master..goldfish-v2`) | the fork the runner uses by default; integrate here only when told |
 | `~/src/forge-pr` | worktree on `upstream-master` and `pr/*` branches | PR candidates; don't rewrite them |
 | `~/src/forge-goldfish/prototype` | the goldfish runner (Java, compiled against the Forge jars of `$FORGE_SRC`) | read only; to change it, copy it: `rsync -a --exclude out --exclude build ~/src/forge-goldfish/prototype/ ~/src/gf-<you>/` |
 
@@ -70,6 +70,6 @@ into tree searches (3-4%, kept for determinism). Details: `docs/research/static-
 
 Rebell Lily's goldfish method (`~/src/mtg-tools/docs/deckbuilding.md`, "Goldfishing"): does the game plan work (the
 turn the commander lands, enablers teeing up payoffs, the turn the plan comes online), keepable openers
-(mulligans), mana and cards cast per turn, and for this deck table dead by round 10 (81.0% on `goldfish-v2`, about
+(mulligans), mana and cards cast per turn, and for this deck table dead by round 10 (80.7% on `goldfish-v2`, about
 ±2.5 points at 1000 games), Jace −3 and +1 per game, damage curve by round. A speedup must keep `log_hash` identical,
 or, if it changes play, keep these metrics within noise on the same 1000 seeds (`compare_runs.py`).
