@@ -3,6 +3,7 @@ package forge.goldfish;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +41,7 @@ public final class DeckController extends PlayerControllerAi {
     private final Policy policy;
     private List<String> libraryOrder;
     private boolean keepAll;
+    private Map<String, String> standIns;
 
     public DeckController(Game game, Player player, LobbyPlayer lobbyPlayer, Set<PhaseType> opponentTurnStops, Policy policy) {
         super(game, player, lobbyPlayer);
@@ -55,10 +57,18 @@ public final class DeckController extends PlayerControllerAi {
         this.keepAll = keepAll;
     }
 
+    /**
+     * Shuffles a deck and a version of it with cards swapped the same way: each shuffle is applied to the library
+     * sorted by name, a new card sorting under the name of the card it replaces, so it lands where that card would.
+     */
+    public void pairShuffles(Map<String, String> standIns) {
+        this.standIns = standIns;
+    }
+
     @Override
     public CardCollectionView cheatShuffle(CardCollectionView list) {
         if (libraryOrder == null) {
-            return super.cheatShuffle(list);
+            return standIns == null ? super.cheatShuffle(list) : pairedShuffle(list);
         }
         List<String> order = libraryOrder;
         libraryOrder = null;
@@ -75,6 +85,32 @@ public final class DeckController extends PlayerControllerAi {
         }
         ordered.addAll(pool);
         return ordered;
+    }
+
+    private CardCollectionView pairedShuffle(CardCollectionView shuffled) {
+        List<Card> before = new ArrayList<>(player.getCardsIn(ZoneType.Library));
+        // one copy of a new card stands in for the card it replaces, the first by id so it stays the same copy
+        Map<String, String> pending = new HashMap<>(standIns);
+        Map<Card, String> key = new IdentityHashMap<>();
+        before.stream().sorted(Comparator.comparingInt(Card::getId)).forEach(c -> {
+            String standIn = pending.remove(c.getName());
+            key.put(c, standIn != null ? standIn : c.getName());
+        });
+        List<Card> sorted = new ArrayList<>(before);
+        sorted.sort(Comparator.comparing(key::get));
+        Map<Card, Integer> position = new IdentityHashMap<>();
+        for (int i = 0; i < before.size(); i++) {
+            position.put(before.get(i), i);
+        }
+        CardCollection paired = new CardCollection();
+        for (Card c : shuffled) {
+            Integer i = position.get(c);
+            if (i == null) {
+                return shuffled;
+            }
+            paired.add(sorted.get(i));
+        }
+        return paired;
     }
 
     @Override

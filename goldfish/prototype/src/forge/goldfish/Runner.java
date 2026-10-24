@@ -73,6 +73,7 @@ public final class Runner {
                 libraryOrders.put(((Number) e.get("seed")).longValue(), (List<String>) e.get("order"));
             }
         }
+        Map<String, String> standIns = opts.containsKey("paired") ? parseStandIns(opts.get("paired")) : null;
         String outPath = required(opts, "out");
 
         System.setProperty("java.awt.headless", "true");
@@ -128,7 +129,7 @@ public final class Runner {
                 List<RegisteredPlayer> players = buildPlayers(ours, fish, stops, policy, passive);
                 for (int g = 0; g < games; g++) {
                     out.println(gson.toJson(play(rules, players, seed + g, g, horizon, timeoutSeconds, watchdog, hung, policy,
-                            skipOpponentTurns, libraryOrders.get(seed + g), false)));
+                            skipOpponentTurns, libraryOrders.get(seed + g), standIns, false)));
                     out.flush();
                 }
             } else {
@@ -143,7 +144,7 @@ public final class Runner {
                     final int index = g;
                     done.add(pool.submit(() -> {
                         String line = gson.toJson(play(rules, players.get(), seed + index, index, horizon, timeoutSeconds, watchdog, hung,
-                                policy, skipOpponentTurns, libraryOrders.get(seed + index), true));
+                                policy, skipOpponentTurns, libraryOrders.get(seed + index), standIns, true));
                         synchronized (out) {
                             out.println(line);
                             out.flush();
@@ -179,7 +180,8 @@ public final class Runner {
     private static Map<String, Object> play(GameRules rules, List<RegisteredPlayer> players, long seed, int index,
                                             int horizon, int timeoutSeconds, ScheduledExecutorService watchdog,
                                             Consumer<Map<String, Object>> hung, Policy policy,
-                                            boolean skipOpponentTurns, List<String> libraryOrder, boolean threaded) throws Exception {
+                                            boolean skipOpponentTurns, List<String> libraryOrder, Map<String, String> standIns,
+                                            boolean threaded) throws Exception {
         if (threaded) {
             MyRandom.setThreadRandom(new Random(seed));
         } else {
@@ -192,6 +194,9 @@ public final class Runner {
         Player me = game.getPlayers().stream().filter(p -> p.getName().equals(DECK_PLAYER)).findFirst().orElseThrow();
         if (libraryOrder != null) {
             ((DeckController) me.getController()).setLibraryOrder(libraryOrder, true);
+        }
+        if (standIns != null) {
+            ((DeckController) me.getController()).pairShuffles(standIns);
         }
         if (skipOpponentTurns) {
             game.getPhaseHandler().setTurnSkipper(p -> p != me);
@@ -304,6 +309,18 @@ public final class Runner {
             opts.put(args[i].substring(2), args[i + 1]);
         }
         return opts;
+    }
+
+    // "on", or "New card=Card it replaces;..." for the swapped version
+    private static Map<String, String> parseStandIns(String value) {
+        Map<String, String> standIns = new HashMap<>();
+        for (String pair : value.split(";")) {
+            int eq = pair.indexOf('=');
+            if (eq > 0) {
+                standIns.put(pair.substring(0, eq), pair.substring(eq + 1));
+            }
+        }
+        return standIns;
     }
 
     private static String required(Map<String, String> opts, String name) {
