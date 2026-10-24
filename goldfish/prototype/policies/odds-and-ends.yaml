@@ -1,0 +1,20 @@
+deck: odds-and-ends
+allow_ai_removed: true
+pay_life_for_untapped_lands: true
+attack: focus_lowest
+opponent_turn_stops: [upkeep, end_of_turn]
+library_top: [odd]
+
+mulligan:
+  keep_if: hand(land) >= 2 and hand(land) <= 5
+
+roles:
+  ramp: [Sol Ring, Arcane Signet, Talisman of Progress, Talisman of Dominance, Talisman of Hierarchy, Relic of Legends,
+         Coalition Relic, "Commander's Sphere", Skyclave Relic, Misleading Signpost, "Wayfarer's Bauble"]
+
+plays:
+  - play: role:ramp
+    when: sources < 5
+    force: true
+  - play: "Yennett, Cryptic Sovereign"
+    force: true

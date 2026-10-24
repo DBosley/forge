@@ -1,12 +1,15 @@
 package forge.goldfish;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import forge.LobbyPlayer;
 import forge.ai.AiCostDecision;
@@ -25,6 +28,7 @@ import forge.game.card.CardCollection;
 import forge.game.card.CardCollectionView;
 import forge.game.combat.Combat;
 import forge.game.combat.CombatUtil;
+import forge.game.phase.PhaseHandler;
 import forge.game.phase.PhaseType;
 import forge.game.player.DelayedReveal;
 import forge.game.player.Player;
@@ -162,6 +166,13 @@ public final class DeckController extends PlayerControllerAi {
     @Override
     public Card chooseSingleCardForZoneChange(ZoneType destination, List<ZoneType> origin, SpellAbility sa, CardCollection fetchList,
             DelayedReveal delayedReveal, String selectPrompt, boolean isOptional, Player decider) {
+        if (policy != null && policy.ordersLibraryTop() && destination == ZoneType.Library && origin.contains(ZoneType.Library)
+                && drawsBeforeAttack() == 0 && !fetchList.isEmpty() && fetchList.stream().allMatch(c -> c.getOwner() == player)) {
+            Card best = policy.orderForTop(new ArrayList<>(fetchList)).get(0);
+            if (policy.wantedOnTop(best)) {
+                return best;
+            }
+        }
         if (policy != null && !isOptional && origin.size() == 1 && origin.get(0) == ZoneType.Hand && destination != ZoneType.Battlefield
                 && !fetchList.isEmpty() && fetchList.stream().allMatch(c -> c.getOwner() == player)) {
             List<Card> picked = policy.worstCards(player, new ArrayList<>(fetchList), 1);
@@ -170,6 +181,52 @@ public final class DeckController extends PlayerControllerAi {
             }
         }
         return super.chooseSingleCardForZoneChange(destination, origin, sa, fetchList, delayedReveal, selectPrompt, isOptional, decider);
+    }
+
+    @Override
+    public CardCollectionView orderMoveToZoneList(CardCollectionView cards, ZoneType destinationZone, SpellAbility source) {
+        CardCollectionView ordered = super.orderMoveToZoneList(cards, destinationZone, source);
+        if (policy == null || !policy.ordersLibraryTop() || destinationZone != ZoneType.Library || ordered.isEmpty()
+                || ordered.getFirst().getOwner() != player || !orderedMoveToTopOfLibrary(destinationZone, source)) {
+            return ordered;
+        }
+        // cards going to the top of the library come back bottom first
+        List<Card> topFirst = new ArrayList<>(ordered);
+        Collections.reverse(topFirst);
+        List<Card> wanted = policy.orderForTop(topFirst, drawsBeforeAttack());
+        Collections.reverse(wanted);
+        return new CardCollection(wanted);
+    }
+
+    @Override
+    public ImmutablePair<CardCollection, CardCollection> arrangeForScry(CardCollection topN) {
+        return keepWantedOnTop(topN, super.arrangeForScry(topN));
+    }
+
+    @Override
+    public ImmutablePair<CardCollection, CardCollection> arrangeForSurveil(CardCollection topN) {
+        return keepWantedOnTop(topN, super.arrangeForSurveil(topN));
+    }
+
+    private ImmutablePair<CardCollection, CardCollection> keepWantedOnTop(CardCollection topN,
+            ImmutablePair<CardCollection, CardCollection> stock) {
+        if (policy == null || !policy.ordersLibraryTop()) {
+            return stock;
+        }
+        List<Card> kept = new ArrayList<>(topN.stream().filter(policy::wantedOnTop).toList());
+        if (stock.getLeft() != null) {
+            stock.getLeft().stream().filter(c -> !kept.contains(c)).forEach(kept::add);
+        }
+        CardCollection away = new CardCollection(topN.stream().filter(c -> !kept.contains(c)).toList());
+        return ImmutablePair.of(new CardCollection(policy.orderForTop(kept, drawsBeforeAttack())), away);
+    }
+
+    // 0 between the deck's own draw step and its attack, when an attack trigger sees the top card first
+    private int drawsBeforeAttack() {
+        PhaseHandler ph = getGame().getPhaseHandler();
+        PhaseType phase = ph.getPhase();
+        return ph.isPlayerTurn(player) && phase != null && !phase.isBefore(PhaseType.DRAW)
+                && !phase.isAfter(PhaseType.COMBAT_DECLARE_ATTACKERS) ? 0 : 1;
     }
 
     @Override

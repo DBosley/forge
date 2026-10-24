@@ -50,11 +50,13 @@ public final class Policy implements AiPlayPolicy {
     private final boolean allowRemoved;
     private final AttackPlan attackPlan;
     private final Map<String, List<String>> charmModes;
+    private final List<CardFilter> libraryTop;
 
     private Policy(Set<String> cardNames, List<Rule> rules, List<Hold> holds, boolean allowRemoved, String opponentTurnStops,
                    Condition keepIf, Map<String, List<CardFilter>> triggerTargets, boolean payLifeForUntappedLands,
                    Map<String, List<CardFilter>> copyChoices, boolean worstFirst, AttackPlan attackPlan,
-                   Map<String, List<String>> charmModes) {
+                   Map<String, List<String>> charmModes, List<CardFilter> libraryTop) {
+        this.libraryTop = libraryTop;
         this.attackPlan = attackPlan;
         this.charmModes = charmModes;
         this.worstFirst = worstFirst;
@@ -110,6 +112,10 @@ public final class Policy implements AiPlayPolicy {
             triggerTargets.put(card, prefs.stream().map(t -> CardFilter.parse(t, roles)).toList());
         });
 
+        List<CardFilter> libraryTop = ((List<String>) doc.getOrDefault("library_top", List.of())).stream()
+                .map(t -> CardFilter.parse(t, roles)).toList();
+        libraryTop.forEach(t -> addName(names, t));
+
         List<Hold> holds = new ArrayList<>();
         for (Map<String, Object> h : (List<Map<String, Object>>) doc.getOrDefault("hold", List.of())) {
             boolean activations = h.containsKey("activate");
@@ -123,7 +129,7 @@ public final class Policy implements AiPlayPolicy {
                 Condition.parse((String) ((Map<String, Object>) doc.getOrDefault("mulligan", Map.of())).get("keep_if"), roles),
                 Map.copyOf(triggerTargets), Boolean.TRUE.equals(doc.get("pay_life_for_untapped_lands")), Map.copyOf(copyChoices),
                 "worst_first".equals(doc.get("hand_disposal")), AttackPlan.parse(doc.get("attack")),
-                Map.copyOf((Map<String, List<String>>) doc.getOrDefault("charm_modes", Map.of())));
+                Map.copyOf((Map<String, List<String>>) doc.getOrDefault("charm_modes", Map.of())), libraryTop);
     }
 
     private static void addName(Set<String> names, CardFilter filter) {
@@ -164,6 +170,33 @@ public final class Policy implements AiPlayPolicy {
             pool.remove(pick);
         }
         return picked;
+    }
+
+    public boolean ordersLibraryTop() {
+        return !libraryTop.isEmpty();
+    }
+
+    public boolean wantedOnTop(Card c) {
+        return !libraryTop.isEmpty() && rank(c, libraryTop) != Integer.MAX_VALUE;
+    }
+
+    /** Top first: the cards library_top wants, the earliest matching filter and then the highest mana value first, then the rest as they were. */
+    public List<Card> orderForTop(List<Card> topFirst) {
+        List<Card> ordered = new ArrayList<>(topFirst.stream().filter(this::wantedOnTop)
+                .sorted(Comparator.comparingInt((Card c) -> rank(c, libraryTop)).thenComparingInt(c -> -c.getCMC())).toList());
+        topFirst.stream().filter(c -> !wantedOnTop(c)).forEach(ordered::add);
+        return ordered;
+    }
+
+    /** The same, when a draw takes the top card first: it gets a card library_top doesn't want, or the least wanted one. */
+    public List<Card> orderForTop(List<Card> topFirst, int drawsFirst) {
+        List<Card> ordered = orderForTop(topFirst);
+        if (drawsFirst > 0 && ordered.size() > 1 && wantedOnTop(ordered.get(0))) {
+            Card drawn = ordered.stream().filter(c -> !wantedOnTop(c)).findFirst().orElse(ordered.get(ordered.size() - 1));
+            ordered.remove(drawn);
+            ordered.add(0, drawn);
+        }
+        return ordered;
     }
 
     public boolean paysLifeForUntappedLands() {
