@@ -148,4 +148,52 @@ public class ComputerUtilManaFilterTest extends AITest {
         List<SpellAbility> play = ((PlayerControllerAi) ai.getController()).getAi().chooseSpellAbilityToPlay();
         AssertJUnit.assertEquals("the Gate alone can't make {W}", plains, play.get(0).getHostCard());
     }
+
+    @Test
+    public void oneSignetPaysForAnother() {
+        Game game = initAndCreateGame();
+        Player ai = game.getPlayers().get(1);
+
+        addCard("Plains", ai);
+        Card azorius = addCard("Azorius Signet", ai);
+        Card dimir = addCard("Dimir Signet", ai);
+        Card cancel = addCardToZone("Cancel", ai, ZoneType.Hand); // {1}{U}{U}
+
+        AssertJUnit.assertTrue("one Signet's mana pays for the other without taking a blue", payForReal(cancel, ai));
+        AssertJUnit.assertTrue(azorius.isTapped() && dimir.isTapped());
+    }
+
+    @Test
+    public void oneFilterLandPaysForAnother() {
+        Game game = initAndCreateGame();
+        Player ai = game.getPlayers().get(1);
+
+        addCard("Plains", ai);
+        addCards("Mystic Gate", 2, ai);
+        Card sanity = addCardToZone("Fractured Sanity", ai, ZoneType.Hand); // {U}{U}{U}
+
+        AssertJUnit.assertTrue(payForReal(sanity, ai));
+    }
+
+    @Test
+    public void comboFilterDoesNotBuildOnAChoiceLeftFromAnEarlierPlan() {
+        Game game = initAndCreateGame();
+        Player ai = game.getPlayers().get(1);
+
+        addCard("Swamp", ai);
+        addCard("Clifftop Retreat", ai);
+        Card gate = addCard("Mystic Gate", ai);
+        addCard("Talisman of Creativity", ai);
+        addCard("Talisman of Indulgence", ai);
+        Card titan = addCardToZone("Grave Titan", ai, ZoneType.Hand); // {4}{B}{B}, five sources make five mana
+
+        for (SpellAbility m : gate.getManaAbilities()) {
+            if (m.getPayCosts().hasManaCost()) {
+                m.getManaPart().setExpressChoice("W U");
+            }
+        }
+        SpellAbility sa = titan.getFirstSpellAbility();
+        sa.setActivatingPlayer(ai);
+        AssertJUnit.assertFalse(ComputerUtilMana.canPayManaCost(sa, ai, 0, false));
+    }
 }
