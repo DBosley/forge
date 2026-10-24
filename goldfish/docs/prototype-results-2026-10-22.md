@@ -99,7 +99,7 @@ is no longer the main gap; the deck policy layer is.
 
 ```
 cd ~/src/forge && mvn -q -o -pl forge-core,forge-game,forge-ai -am -DskipTests -Dcheckstyle.skip=true package
-cd ~/src/forge-goldfish/prototype && ./build.sh
+cd ~/src/forge-v2/goldfish/prototype && ./build.sh
 ./run.sh lazyperf -Dforge.ai.inlineEvaluation=true -Dforge.ai.sequentialAttacks=true -- \
   --deck $PWD/decks/multiverse-reforged.dck --fish $PWD/decks/goldfish.dck \
   --games 30 --seed 1 --horizon 10 --opponents passive --out $PWD/out/run.jsonl

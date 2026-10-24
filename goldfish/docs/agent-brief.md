@@ -1,4 +1,4 @@
-# Goldfish runner: brief for agents (updated 2026-10-23 morning)
+# Goldfish runner: brief for agents (updated 2026-10-23 evening)
 
 Goal: run Commander goldfish games (one deck under test vs three passive opponents) as fast as possible on a forked
 Forge, without changing the data the games produce, and in a shape upstream Forge maintainers would accept where it
@@ -9,23 +9,26 @@ touches Forge itself.
 | Path | What | Rules |
 |---|---|---|
 | `~/src/forge` | main Forge checkout, branch `goldfish` (old, pushed to fork `DBosley/forge`), plus uncommitted old work | read only; never edit, build or switch branch here |
-| `~/src/forge-v2` | worktree, branch `goldfish-v2`: upstream master (9a6f776b848) + 35 commits (`git log upstream-master..goldfish-v2`) | the fork the runner uses by default; integrate here only when told |
+| `~/src/forge-v2` | worktree, branch `goldfish-v2`, the default branch of the fork `DBosley/forge`: upstream master (9a6f776b848) + 35 Forge commits, then the runner and these docs under `goldfish/` | integrate here only when told |
 | `~/src/forge-pr` | worktree on `upstream-master` and `pr/*` branches | PR candidates; don't rewrite them |
-| `~/src/forge-goldfish/prototype` | the goldfish runner (Java, compiled against the Forge jars of `$FORGE_SRC`) | read only; to change it, copy it: `rsync -a --exclude out --exclude build ~/src/forge-goldfish/prototype/ ~/src/gf-<you>/` |
+| `goldfish/prototype` in each worktree | the goldfish runner (Java, compiled against the Forge jars of `$FORGE_SRC`, which defaults to the worktree it sits in) | change it in your own worktree |
 
 `goldfish-v2` layout, oldest first: MostCromulent's #12357 (4), the open upstream perf PRs #11933, #11964, #11975 (4),
 our PR candidates (filter chain follow-up, unfreeze, forced attackers in order, then five no-cache scan cuts), fork-only
 flags (inline AI evaluation, state-check skip, replacement list cache and memo, static list cache, alternative-cost
-source memo), runner hooks and measurement switches, then the goldfish-only fast paths behind `GameRules.setGoldfish`.
+source memo), runner hooks and measurement switches, the goldfish-only fast paths behind `GameRules.setGoldfish`, then
+the commits that only touch `goldfish/` (the runner moved in from its own repo, its old history is on `goldfish-runner-history`).
+Forge commits only: `git log upstream-master..goldfish-v2 -- . ':!goldfish'`.
 
-Make your own worktree for any Forge change: `git -C ~/src/forge worktree add ~/src/forge-<you> -b <you>/<topic> goldfish-v2`.
+Make your own worktree for any Forge or runner change: `git -C ~/src/forge worktree add ~/src/forge-<you> -b <you>/<topic> goldfish-v2`.
+It carries its own copy of the runner, built against that worktree.
 Never push, never force anything, never touch another agent's worktree.
 
 ## Build, run, test
 
 - Build in a worktree (the runner needs the desktop jar too, it uses the worktree's own jar and `forge-gui/res`):
   `mvn -q -B -o -pl forge-core,forge-game,forge-ai,forge-gui-desktop -am -DskipTests -Dcheckstyle.skip=true package`
-- Runner against a worktree: `cd ~/src/gf-<you> && FORGE_SRC=$HOME/src/forge-<you> ./run.sh lazyperf <jvm -D flags> -- <runner args>`.
+- Runner: `cd ~/src/forge-<you>/goldfish/prototype && ./run.sh lazyperf <jvm -D flags> -- <runner args>` (`FORGE_SRC=<worktree>` runs it against another build).
   It compiles itself per worktree (`build/<worktree>`), uses ParallelGC, `-XX:hashCode=2` and `-XX:-DontCompileHugeMethods`.
 - Standard flags: run.sh adds them by default (`-Dforge.ai.inlineEvaluation=true -Dforge.game.skipRedundantStateChecks=true -Dforge.game.cacheReplacementLists=true -Dforge.game.memoReplacementCandidates=true -Dforge.game.cacheStaticLists=true -Dforge.game.memoAltCostSources=true`); `FORGE_FLAGS=` runs without them. None of them change a game
 - Standard args: `--deck $PWD/decks/multiverse-reforged.dck --fish $PWD/decks/goldfish-basics.dck --games N --seed S --horizon 10 --opponents passive --opponent-stops upkeep,end_of_turn --policy $PWD/policies/multiverse-reforged.yaml --out <file.jsonl>`
@@ -36,7 +39,7 @@ Never push, never force anything, never touch another agent's worktree.
   metrics. `cpu_ms` (game thread CPU) is the timing number to trust when the machine is busy. Games are deterministic:
   same jars + seed + flags gives the same `log_hash`. **A change that keeps every `log_hash` identical cannot have
   changed the data.** Otherwise run `python3 compare_runs.py <baseline> <candidate>` (see `compare_runs.md`).
-- Baseline: `~/src/forge-goldfish/prototype/out/final-1000/rows.jsonl` (+ `logs/`), seeds 1-1000 on `goldfish-v2`.
+- Baseline: `~/src/forge-v2/goldfish/prototype/out/final-1000/rows.jsonl` (+ `logs/`), seeds 1-1000 on `goldfish-v2`.
 - Forge tests (in a worktree): `mvn -B -o -pl forge-gui-desktop -am -Dcheckstyle.skip=true -Dsurefire.failIfNoSpecifiedTests=false -DfailIfNoTests=false -Dmaven.test.failure.ignore=true '-Dtest=forge/ai/**/*Test,forge/ai/**/*Tests,forge/gamesimulationtests/**/*Test,forge/gamesimulationtests/**/ComprehensiveRules*,forge/game/**/*Test' test`
   `goldfish-v2` passes 454/454 with no flags and with the standard flags set through `JAVA_TOOL_OPTIONS`.
 - Profiling: add `-XX:StartFlightRecording=filename=<f>.jfr,settings=profile`, then `python3 profile_summary.py <f>.jfr 40`
