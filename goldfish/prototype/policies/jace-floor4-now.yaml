@@ -1,0 +1,94 @@
+deck: multiverse-reforged
+allow_ai_removed: true
+pay_life_for_untapped_lands: true
+hand_disposal: worst_first
+opponent_turn_stops: [upkeep, end_of_turn]
+
+mulligan:
+  keep_if: hand(land) >= 3 and hand(land) <= 5
+
+roles:
+  ramp: [Sol Ring, Arcane Signet, Azorius Signet, Dimir Signet, Izzet Signet, Rakdos Signet, Talisman of Creativity,
+         Talisman of Dominance, Talisman of Indulgence, Talisman of Progress, Fellwar Stone, Chromatic Lantern, Cursed Mirror]
+  fodder: ["Elspeth, Sun's Champion", Overlord of the Mistmoors, Staff of the Storyteller, "Skrelv's Hive",
+           Dreadhorde Invasion, "Urabrask's Forge", "Ovika, Enigma Goliath", "Memnarch, the Warden", Way of the Healer,
+           Way of the Mind Sculptor, Oath of Gideon, Ajani Unrelenting, Grave Titan, Lingering Souls]
+  x_fodder: [Grand Crescendo, Martial Coup, "White Sun's Twilight"]
+  polymorph_tools: [Identity Echo, Proteus Staff]
+  engine: [Ichormoon Gauntlet, Oath of Teferi, Displacer Kitten, Spark Double]
+  draw: [Brainsurge, Whirlwind of Thought]
+
+plays:
+  - activate: "Jace, Multiverse Architect: -3"
+    when: count(creature token) >= 1
+    target: [creature token]
+    min_loyalty: 4
+  - activate: "Nicol Bolas, Dragon-God: -3"
+    text: Reveal cards
+    when: count(creature token) >= 1
+    target: [creature token]
+  - activate: "Jace, Multiverse Architect: +1"
+    max_loyalty: 2
+    force: true
+  - activate: "Jace, Multiverse Architect: +1"
+    when: main2
+    force: true
+  - activate: "Nicol Bolas, Dragon-God: +1"
+    text: Draw two
+    when: main2
+    force: true
+  - play: role:ramp
+    when: sources < 5
+    force: true
+  - play: role:fodder
+    when: count(creature token) == 0
+    force: true
+  - play: role:x_fodder
+    when: count(creature token) == 0
+    force: true
+  - activate: Kher Keep
+    when: count(creature token) == 0
+    force: true
+  - activate: Identity Echo
+    when: count(creature token) >= 1
+    target: [creature token]
+  - activate: Proteus Staff
+    when: count(creature token) >= 1
+    target: [creature token]
+  - play: Reality Scramble
+    when: count(creature token) >= 1
+    target: [creature token]
+  - play: role:engine
+    when: count(planeswalker nontoken) >= 1
+    force: true
+  - play: Divergent Transformations
+    when: count(creature token) >= 2
+    target: [creature token]
+  - play: Mass Polymorph
+    when: count(creature token) >= 2 and count(creature nontoken) == 0
+    force: true
+  - play: Synthetic Destiny
+    when: count(creature token) >= 2 and count(creature nontoken) == 0
+    force: true
+  - play: "Jace, Multiverse Architect"
+    force: true
+  - play: role:polymorph_tools
+    force: true
+  - play: role:fodder
+    force: true
+  - play: role:x_fodder
+    force: true
+  - play: role:engine
+    force: true
+  - play: role:ramp
+    force: true
+  - play: role:draw
+    force: true
+
+copy_choices:
+  Spark Double: ["Jace, Multiverse Architect", nontoken planeswalker, creature]
+
+trigger_targets:
+  Displacer Kitten: [nontoken planeswalker used]
+  Ichormoon Gauntlet: [nontoken planeswalker, planeswalker]
+
