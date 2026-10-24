@@ -43,6 +43,9 @@ Never push, never force anything, never touch another agent's worktree.
   metrics. `cpu_ms` (game thread CPU) is the timing number to trust when the machine is busy. Games are deterministic:
   same jars + seed + flags gives the same `log_hash`. **A change that keeps every `log_hash` identical cannot have
   changed the data.** Otherwise run `python3 compare_runs.py <baseline> <candidate>` (see `compare_runs.md`).
+- Before committing to `goldfish-v2`: `goldfish/prototype/check.sh [games]` (default 200, ~25 s) plays the baseline deck
+  and runs `compare_runs.py` against the baseline, with the failed-cast count. IDENTICAL or EQUIVALENT, unless the
+  change means to alter play.
 - Baseline: `~/src/forge-v2/goldfish/prototype/out/final-1000/rows.jsonl` (+ `logs/`), seeds 1-1000 on `goldfish-v2`.
 - Forge tests (in a worktree): `mvn -B -o -pl forge-gui-desktop -am -Dcheckstyle.skip=true -Dsurefire.failIfNoSpecifiedTests=false -DfailIfNoTests=false -Dmaven.test.failure.ignore=true '-Dtest=forge/ai/**/*Test,forge/ai/**/*Tests,forge/gamesimulationtests/**/*Test,forge/gamesimulationtests/**/ComprehensiveRules*,forge/game/**/*Test' test`
   `goldfish-v2` passes 454/454 with no flags and with the standard flags set through `JAVA_TOOL_OPTIONS`.
