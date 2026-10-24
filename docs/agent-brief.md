@@ -38,7 +38,7 @@ Never push, never force anything, never touch another agent's worktree.
   changed the data.** Otherwise run `python3 compare_runs.py <baseline> <candidate>` (see `compare_runs.md`).
 - Baseline: `~/src/forge-goldfish/prototype/out/final-1000/rows.jsonl` (+ `logs/`), seeds 1-1000 on `goldfish-v2`.
 - Forge tests (in a worktree): `mvn -B -o -pl forge-gui-desktop -am -Dcheckstyle.skip=true -Dsurefire.failIfNoSpecifiedTests=false -DfailIfNoTests=false -Dmaven.test.failure.ignore=true '-Dtest=forge/ai/**/*Test,forge/ai/**/*Tests,forge/gamesimulationtests/**/*Test,forge/gamesimulationtests/**/ComprehensiveRules*,forge/game/**/*Test' test`
-  `goldfish-v2` passes 455/455 with no flags and with the standard flags set through `JAVA_TOOL_OPTIONS`.
+  `goldfish-v2` passes 454/454 with no flags and with the standard flags set through `JAVA_TOOL_OPTIONS`.
 - Profiling: add `-XX:StartFlightRecording=filename=<f>.jfr,settings=profile`, then `python3 profile_summary.py <f>.jfr 40`
   (single thread runs are easiest to read).
 - **Timing hygiene:** other agents may share this 16-core machine. Compare A and B interleaved, same seeds, at most

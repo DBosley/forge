@@ -1,4 +1,4 @@
-Branch: pr/ai-filter-chain-on-12357, one commit (4b174956836) on top of MostCromulent's #12357 (bc3cf955526). Two ways to open it:
+Branch: pr/ai-filter-chain-on-12357, one commit (95c4bfdf382) on top of MostCromulent's #12357 (bc3cf955526). Two ways to open it:
 - now, as a PR into MostCromulent's branch, so he can fold it into #12357: https://github.com/MostCromulent/forge/compare/shadowmoor-filter-lands...DBosley:forge:pr/ai-filter-chain-on-12357
 - after #12357 merges, against Card-Forge master (rebase onto master first, or the PR carries #12357's four commits)
 The comment in 12357-comment.md covers both. If #12357 stalls, the chain commit needs porting to master, none of it exists there yet.
@@ -21,7 +21,7 @@ Measured on 1000 seeded AI goldfish games with a Signet and filter land heavy Co
 
 Speed: on those games the time per game matches #12357 within noise and the chain code is under 0.3% of CPU. In ordinary sim games (8 tables of 4 random Commander precons, 3 rounds) 6 tables played the same game on both builds and took the same time, -0.3% (95% -1.1% to +0.5%), the other 2 played differently. The worst case is a board stacked with filters. One canPayManaCost call with 2 Plains and 10 Signets goes from 142-184 µs to 160-262 µs, with a Plains and 6 Mystic Gates from 106-136 µs to 100-186 µs. It grows with the number of filters but doesn't blow up, a filter that fails isn't tried again in the same chain.
 
-Tested: four cases added to ComputerUtilManaFilterTest, all fail on #12357. The ai, game and game simulation test sets pass (455).
+Tested: three cases added to ComputerUtilManaFilterTest, all fail on #12357. The ai, game and game simulation test sets pass (454).
 
 Written with Claude Code.
 
