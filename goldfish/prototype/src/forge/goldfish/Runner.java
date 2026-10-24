@@ -90,8 +90,7 @@ public final class Runner {
             ours.getAllCardsInASinglePool().forEach(e -> inDeck.add(e.getKey().getName()));
             List<String> missing = policy.cardNames().stream().filter(n -> !inDeck.contains(n)).toList();
             if (!missing.isEmpty()) {
-                System.err.println("policy names cards that aren't in the deck: " + missing);
-                System.exit(2);
+                System.err.println("policy names cards that aren't in the deck, their rules never fire: " + missing);
             }
         }
         System.err.println("META {\"startup_ms\":" + (System.nanoTime() - start) / 1_000_000 + "}");
